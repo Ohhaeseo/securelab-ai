@@ -104,7 +104,7 @@
 - `documentIds`를 주면 그 문서만 참고한다. **하나라도 읽을 권한이 없으면 모델을 부르기 전에 403** (AI-03). 최대 5개.
 - 생략하면 질문에서 뽑은 키워드로 **읽을 수 있는 문서(본인 + 공개) 안에서만** 검색한다 (최대 5건, 건당 2,000자).
 - 응답: `answer`(모델 출력 — 텍스트로만 표시), `citations`(모델에 전달한 문서), `toolCalls`(모델이 제안한 도구와 처리 결과), `model`.
-- 모델이 제안한 도구는 지금은 실행하지 않는다 (`NOT_EXECUTED`). 7주차에 서버 정책(`ToolExecutionPolicyService`)이 허용·거부를 정한다.
+- 모델이 제안한 도구는 서버 정책(`ToolExecutionPolicyService`)이 판정한다. `toolCalls[].status`: `EXECUTED`(현재 사용자 권한으로 실행, `output` 포함) / `DENIED`(`reasonCode`: `NOT_IN_ALLOWLIST`, `SCHEMA_INVALID`, `ROLE_REQUIRED`, `NOT_PERMITTED`, `NOT_FOUND`, `TOO_MANY_TOOL_CALLS`). 허용 도구: `get_document(documentId)`, `list_documents(limit?)`, `list_security_events(limit?)` — 관리자 전용. ADR-0005.
 - 질문·답변·문서 원문은 저장하지 않는다. 도구 제안은 `ai_tool_calls`에 이름과 인자 해시만 남는다.
 
 > AI 도구 실행은 공개 API(`/ai/tools/execute`)로 열지 않는다. 서버 내부 `ToolExecutionPolicyService`로만 실행하고, 관리자 실험 API도 이 정책을 건너뛸 수 없다.

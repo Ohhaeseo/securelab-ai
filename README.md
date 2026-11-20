@@ -17,8 +17,9 @@
 ![Redis](https://img.shields.io/badge/Redis-7.4-DC382D?logo=redis&logoColor=white)
 ![Ollama](https://img.shields.io/badge/Ollama-planned-000000?logo=ollama&logoColor=white)
 
-![status](https://img.shields.io/badge/status-week_5_done-blue)
-![tests](https://img.shields.io/badge/tests-109_passing-brightgreen)
+![status](https://img.shields.io/badge/status-week_7_done-blue)
+![tests](https://img.shields.io/badge/tests-116_passing-brightgreen)
+[![CI](https://github.com/Ohhaeseo/securelab-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/Ohhaeseo/securelab-ai/actions/workflows/ci.yml)
 
 [기획 정리](docs/planning/plan-summary.md) · [로드맵](docs/planning/roadmap.md) · [아키텍처](docs/architecture.md) · [위협 모델](docs/threat-model.md) · [API 명세](docs/api-spec.md) · [실험 결과](docs/experiment-results.md)
 
@@ -77,7 +78,7 @@
 | 테스트 | JUnit · Spring Boot Test · Testcontainers | 6.0 · — · 2.0 | ✅ | 실제 PostgreSQL로 인증·인가 통합 테스트 |
 | 요청 제한 | Redis (Lettuce) | 7.4 | ✅ | 기간별 요청 횟수, 로그인 실패 카운터 (TTL) |
 | AI | Mock LLM → Ollama + Spring AI | mock-1 | ✅ / 6주차 | GPU 없이 정책부터 검증(Mock 완료), 이후 1~3B급 로컬 모델 평가 |
-| CI | GitHub Actions | — | 7주차 | 통합 테스트 자동화 |
+| CI | GitHub Actions | — | ✅ | 통합 테스트 자동화 (Testcontainers) |
 | 부하 테스트 | k6 | — | 8주차 | 요청 제한·지연·오탐 측정 |
 | 개발 환경 | WSL2 · Docker Compose | — | ✅ | 로컬 재현성, 비용 0원 |
 
@@ -168,8 +169,9 @@ AI 도구 실행 흐름과 신뢰 경계 표는 [docs/architecture.md](docs/arch
 | 감사 | 접근 거부·역할 위반·CSRF 거부·요청 제한·로그인 차단을 `security_events`에 기록, 로그인 시도는 `login_attempts`에 HMAC 다이제스트로 기록, 30일 보존 |
 | 운영 | Actuator `health`만 노출, Swagger는 `local` 프로필에서만 |
 | 실험 격리 | 취약 대조군 `vulnerable-api`(인가만 제거, 루프백 전용), 실험 API는 `lab` 프로필 + ADMIN |
-| AI 문서 도우미 | Mock LLM, 인가된 문서만 모델에 전달(키워드 검색은 인가 조건과 한 쿼리, ID 지정은 모델 호출 전 403 — AI-03), 도구 제안은 기록만 하고 실행 안 함 |
-| 테스트 | backend 96건 (실제 HTTP + Testcontainers PostgreSQL·Redis) + vulnerable-api 13건 (결함 재현 회귀) |
+| AI 문서 도우미 | Mock LLM, 인가된 문서만 모델에 전달(키워드 검색은 인가 조건과 한 쿼리, ID 지정은 모델 호출 전 403 — AI-03) |
+| AI 도구 정책 | 모델은 제안만, 서버가 판정: 호출 수 상한 → 허용 목록(AI-04) → 인자 스키마 → 역할(AI-02) → 현재 사용자 권한으로 실행. 읽기 전용 도구만 (ADR-0005) |
+| 테스트·CI | backend 103건 (실제 HTTP + Testcontainers PostgreSQL·Redis, 로그 점검 포함) + vulnerable-api 13건, GitHub Actions |
 
 | API | 권한 |
 | --- | --- |
@@ -216,7 +218,7 @@ gantt
   section P1 AI 보안
   Mock AI · 권한 필터링 검색       :done, w5, after w4, 7d
   Ollama · Prompt Injection 벤치마크 :w6, after w5, 7d
-  도구 실행 정책 · CI              :w7, after w6, 7d
+  도구 실행 정책 · CI              :done, w7, after w6, 7d
   section 마무리
   k6 측정 · 보고서 · 시연          :w8, after w7, 7d
 ```
@@ -229,7 +231,7 @@ gantt
 | 4 | 12/14–12/20 | Redis 요청 제한, 로그인 탐지, 감사 로그 | 429 정책, 보안 이벤트 조회 | ✅ |
 | 5 | 12/21–12/27 | Mock AI, 소유권 필터링 문서 검색 | 인가된 문서만 AI에 전달 | ✅ |
 | 6 | 12/28–01/03 | Ollama 연동, Prompt Injection 벤치마크 | 시나리오별 ASR 기록 | ⚪ |
-| 7 | 01/04–01/10 | 도구 실행 정책, 테스트·CI, 로그 | 무단 도구 실행 0건 검증 | ⚪ |
+| 7 | 01/04–01/10 | 도구 실행 정책, 테스트·CI, 로그 | 무단 도구 실행 0건 검증 | ✅ |
 | 8 | 01/11–01/17 | k6 성능 측정, 보고서·시연·README | 전후 지표, 영상, 회고 | ⚪ |
 
 🟡 진행 중 · ⚪ 예정 · ✅ 완료 — 일별 체크리스트는 [roadmap.md](docs/planning/roadmap.md)에 있습니다.
@@ -253,7 +255,9 @@ securelab-ai/
 │   │   │   │   │   ├── ratelimit/             # Redis 고정 윈도우 카운터, API 요청 제한 필터 (SEC-04)
 │   │   │   │   │   ├── detection/             # 로그인 보호, HMAC 이메일 다이제스트, login_attempts (SEC-03)
 │   │   │   │   │   └── audit/                 # 보안 이벤트 기록·조회, 보존 기간 정리 작업
-│   │   │   │   ├── ai/                        # controller · service · model · entity · repository · dto (policy · tools는 7주차)
+│   │   │   │   ├── ai/                        # controller · service · model · policy · tools · entity · repository · dto
+│   │   │   │   │   ├── policy/                # ToolExecutionPolicyService (도구 실행 판정)
+│   │   │   │   │   ├── tools/                 # 읽기 전용 도구 3종, 허용 목록
 │   │   │   │   │   └── model/                 # AiClient, MockAiClient (문서 속 지시를 따르는 '넘어가는 모델' 흉내)
 │   │   │   │   ├── experiment/                # controller · service · runner
 │   │   │   │   └── global/                    # config · exception · response · web
@@ -269,7 +273,7 @@ securelab-ai/
 │   │   │           ├── V5__ai_sessions.sql    # AI 세션
 │   │   │           └── V6__experiment_runs_and_ai_tool_calls.sql # 실험 결과(I-2), 도구 호출 감사
 │   │   └── test/java/com/securelab/
-│   │       ├── ai/                                # AI-03: 모델 입력을 가로채 남의 비공개 문서 0건 확인
+│   │       ├── ai/                                # AI-03 모델 입력 검사, AI-01/02/04 도구 정책
 │   │       ├── auth/                              # 가입, 로그인·로그아웃, 세션 고정, CSRF 재발급
 │   │       ├── document/                          # SEC-01 문서 소유권 (읽기·수정·삭제), 목록
 │   │       ├── security/                          # 접근 제어 표 (401/403, SEC-02), 보안 이벤트 기록
@@ -310,7 +314,7 @@ securelab-ai/
 │   ├── database.md                            # 테이블, ERD
 │   ├── api-spec.md                            # 엔드포인트, 응답 규칙
 │   └── experiment-results.md                  # 지표 정의, 측정 결과
-├── .github/workflows/                         # CI (7주차)
+├── .github/workflows/ci.yml                  # CI: backend + vulnerable-api 빌드·테스트
 ├── .env.example                               # 백엔드 추가 환경 변수 예시 (Redis, AI 등)
 ├── .gitignore
 └── README.md

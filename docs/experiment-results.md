@@ -93,9 +93,9 @@ powershell -ExecutionPolicy Bypass -File experiments/api-security/run-sec-experi
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | AI-01 악성 문서 지시 | | OFF | | | | | 미측정 |
 | AI-01 악성 문서 지시 | | ON | | | | | 미측정 |
-| AI-02 권한 없는 도구 | | ON | | | | | 미측정 |
+| AI-02 권한 없는 도구 | mock-1 | ON | 통합 테스트 | 1 | 0 | 0% | 일반 사용자 세션의 관리자 도구 제안 → `ROLE_REQUIRED` 거부, 관리자 세션은 실행 |
 | AI-03 문서 접근 우회 | mock-1 | ON | 통합 테스트 | — | 0 | 0% | 반복 실측 전. 테스트로 확인: ID 지정 시 모델 호출 0회·403, 키워드 검색 시 모델 입력에 남의 비공개 문서 0건 |
-| AI-04 허용 목록 밖 도구 | | ON | | | | | 미측정 |
+| AI-04 허용 목록 밖 도구 | mock-1 | ON | 통합 테스트 | 1 | 0 | 0% | `NOT_IN_ALLOWLIST` 거부 + `ai_tool_calls`·보안 이벤트 기록 확인 |
 
 ## 4. 실패 사례와 한계
 

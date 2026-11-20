@@ -34,17 +34,17 @@
 
 | ID | 위협 | OWASP | 대응 | 검증 |
 | --- | --- | --- | --- | --- |
-| T1 | 문서 ID를 바꿔 타인 문서 조회·수정 | API1:2023 BOLA | 서비스 계층에서 `owner_id`와 인증 주체 비교 | SEC-01 |
-| T2 | 일반 사용자가 관리 API 호출 | API5:2023 BFLA | URL 역할 검사 + 작업별 권한 | SEC-02 |
-| T3 | 비밀번호 대입, 크리덴셜 스터핑 | API2:2023 Broken Authentication | 로그인 실패 기록, 일시 제한 | SEC-03 |
-| T4 | 과도한 요청으로 자원 고갈 | API4:2023 Unrestricted Resource Consumption | Redis 요청 제한, 429 + `Retry-After` | SEC-04 |
-| T5 | 문서 속 지시문으로 모델 조종 | LLM01 Prompt Injection | 문서를 데이터로 구분, 실제 행위는 정책 게이트가 결정 | AI-01 |
-| T6 | 모델이 권한 밖 도구를 실행하도록 유도 | LLM06 Excessive Agency | `ToolExecutionPolicyService`의 주체·권한 재검사 | AI-02 |
-| T7 | AI 검색으로 타인 비공개 문서 유출 | LLM02 Sensitive Information Disclosure | 모델 입력 전 DB 단계에서 권한 필터링 | AI-03 |
-| T8 | 모델이 만든 도구 이름·인자를 그대로 실행 | LLM05 Improper Output Handling | 허용 목록, 인자 스키마 검증, 감사 기록 | AI-04 |
+| T1 | 문서 ID를 바꿔 타인 문서 조회·수정 | API1:2023 BOLA | 서비스 계층에서 `owner_id`와 인증 주체 비교 (`DocumentAccessPolicy`) | SEC-01 ✅ 실측 |
+| T2 | 일반 사용자가 관리 API 호출 | API5:2023 BFLA | URL 역할 검사 | SEC-02 ✅ 실측 |
+| T3 | 비밀번호 대입, 크리덴셜 스터핑 | API2:2023 Broken Authentication | (계정+IP)·IP 실패 카운터, 일시 차단, HMAC 기록 (ADR-0004) | SEC-03 ✅ 실측 |
+| T4 | 과도한 요청으로 자원 고갈 | API4:2023 Unrestricted Resource Consumption | Redis 요청 제한, 429 + `Retry-After` (ADR-0004) | SEC-04 ✅ 실측 |
+| T5 | 문서 속 지시문으로 모델 조종 | LLM01 Prompt Injection | 문서를 데이터로 구분, 실제 행위는 정책 게이트가 결정. 도구는 읽기 전용만 (ADR-0005) | AI-01 ✅ 테스트 |
+| T6 | 모델이 권한 밖 도구를 실행하도록 유도 | LLM06 Excessive Agency | `ToolExecutionPolicyService`의 역할 검사 + 현재 사용자 권한으로 실행 | AI-02 ✅ 테스트 |
+| T7 | AI 검색으로 타인 비공개 문서 유출 | LLM02 Sensitive Information Disclosure | 모델 입력 전 DB 단계에서 권한 필터링 | AI-03 ✅ 테스트 |
+| T8 | 모델이 만든 도구 이름·인자를 그대로 실행 | LLM05 Improper Output Handling | 허용 목록, 인자 스키마 검증, 감사 기록 | AI-04 ✅ 테스트 |
 | T9 | 세션 쿠키를 이용한 요청 위조 | — (CSRF) | CSRF 토큰, SameSite, HttpOnly | 인증 통합 테스트 |
 | T10 | 에러 응답으로 내부 정보 노출 | API8:2023 Security Misconfiguration | 공통 에러 형식, 스택 트레이스 비공개 | 에러 응답 테스트 |
-| T11 | 로그·이벤트에 민감 정보 저장 | — | 평문 비밀번호·토큰·LLM 원문 미저장, 보존 기간 | 로그 정책 점검 (7주) |
+| T11 | 로그·이벤트에 민감 정보 저장 | — | 평문 비밀번호·토큰·LLM 원문 미저장, HMAC 다이제스트, 30일 보존 | `LogHygieneTests` ✅ |
 | T12 | 취약 실험 코드가 외부에 노출 | API9:2023 Improper Inventory Management | 별도 앱으로 격리, localhost 바인딩, `lab` 프로필 | 배포 설정 점검 |
 
 ## 5. 범위 밖

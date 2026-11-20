@@ -1,0 +1,65 @@
+# 빌드·테스트 CI. Testcontainers가 PostgreSQL·Redis 컨테이너를 띄운다 (ubuntu 러너의 Docker 사용).
+# 공격 실험(러너, 실측)은 CI에서 돌리지 않는다 — 로컬 루프백 전용 (ADR-0002).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend (보호 버전)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      # Gradle 캐시 + wrapper jar 체크섬 검증
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build and test
+        run: ./gradlew build --no-daemon
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-reports
+          path: backend/build/reports/tests
+          retention-days: 7
+
+  vulnerable-api:
+    name: vulnerable-api (대조군 결함 재현)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: experiments/api-security/vulnerable-api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build and test
+        run: ./gradlew build --no-daemon
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vulnerable-api-test-reports
+          path: experiments/api-security/vulnerable-api/build/reports/tests
+          retention-days: 7

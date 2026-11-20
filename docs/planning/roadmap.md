@@ -127,10 +127,12 @@
 - Spring AI 연동 (Boot 4.1 호환 버전 확인)
 - AI-01 벤치마크: 모델 반응과 실제 행위를 따로 기록, ASR 기록
 
-### 7주 — 도구 실행 정책, CI
-- `ToolExecutionPolicyService`: 허용 목록 → 인자 스키마 검증 → 주체·소유권·역할 재검사
-- AI-02/04 테스트, `ai_tool_calls` 감사 기록
-- GitHub Actions CI (Testcontainers 포함), 로그 정책 점검
+### 7주 — 도구 실행 정책, CI ✅ (11/20에 먼저 완료, 6주차보다 먼저 진행)
+- [x] `ToolExecutionPolicyService`: 호출 수 상한(3) → 허용 목록 → 인자 스키마 검증 → 역할 → 현재 사용자 권한으로 실행(소유권 재검사) — [ADR-0005](../adr/0005-ai-tool-execution-policy.md)
+- [x] 읽기 전용 도구 3종(`get_document`, `list_documents`, `list_security_events`), 쓰기 도구는 confused deputy 위험으로 보류
+- [x] AI-01/02/04 테스트, `ai_tool_calls` 감사 기록(ALLOWED/DENIED·사유·인자 해시), 거부는 `AI_TOOL_DENIED` 보안 이벤트
+- [x] GitHub Actions CI: backend(Testcontainers PostgreSQL·Redis) + vulnerable-api, `permissions: contents: read`, wrapper 검증
+- [x] 로그 정책 점검: `LogHygieneTests` — 비밀번호·이메일·문서 본문·질문 원문이 어떤 로그에도 없음을 확인
 
 ### 8주 — 측정, 보고서, 시연
 - k6 시나리오(정상 + 공격 혼합), 정책 전후 p50/p95·오탐률·차단률
