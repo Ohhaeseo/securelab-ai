@@ -6,8 +6,9 @@
 | --- | --- | --- |
 | [0001](0001-session-cookie-auth.md) | 세션 쿠키 기반 인증 | 채택 |
 | [0002](0002-isolated-vulnerable-lab.md) | 취약 실험 대상을 별도 앱으로 격리 | 제안 |
+| [0003](0003-password-encoder.md) | 비밀번호 해시: Argon2id + DelegatingPasswordEncoder | 채택 |
 
-**작성 후보:** Mock LLM 우선 개발, 비밀번호 인코더 선택(I-7), 요청 제한 알고리즘(고정·슬라이딩 윈도우), Redis 장애 시 허용/거부 정책
+**작성 후보:** Mock LLM 우선 개발, 요청 제한 알고리즘(고정·슬라이딩 윈도우), Redis 장애 시 허용/거부 정책
 
 ## 템플릿
 

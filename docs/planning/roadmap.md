@@ -46,12 +46,15 @@
 - [x] 테스트: `SchemaMigrationTests`(제약 7건), `ActuatorHealthTests`(노출 범위 2건) — 전체 10건 통과
 - **완료 조건:** DB 연결, 헬스 체크 성공 — `bootRun`으로 V1 적용, `/actuator/health` UP 확인
 
-### 수 11/25 — 사용자, 가입
+### 수 11/25 — 사용자, 가입 ✅ (11/20에 먼저 완료)
 
-- [ ] 비밀번호 인코더 결정 (I-7)
-- [ ] `User` 엔티티, `UserRepository`
-- [ ] `POST /api/v1/auth/signup`: 입력 검증, 이메일 중복 409, 단방향 해시 저장
-- [ ] 이메일은 공백 제거 후 소문자로 정규화해 저장 (DB에 `ck_users_email_lowercase` 제약이 있어 정규화를 빠뜨리면 저장 실패)
+- [x] 비밀번호 인코더 결정 (I-7) → Argon2id + `DelegatingPasswordEncoder` ([ADR-0003](../adr/0003-password-encoder.md))
+- [x] `User` 엔티티, `UserRepository`
+- [x] `POST /api/v1/auth/signup`: 입력 검증, 이메일 중복 409, 단방향 해시 저장
+- [x] 이메일은 공백 제거 후 소문자로 정규화해 저장 (`EmailNormalizer`)
+- [x] 공통 에러 응답(`ErrorResponse`, `GlobalExceptionHandler`), `RequestIdFilter`(안전하지 않은 값은 교체), 401/403 JSON
+- [x] CSRF: `XSRF-TOKEN` 쿠키(SameSite=Lax) → `X-XSRF-TOKEN` 헤더, `GET /api/v1/auth/csrf` (I-4)
+- [x] 통합 테스트는 실제 HTTP(임의 포트) + 쿠키 저장소로 검증 (`ApiClient`). spring-security-test의 `csrf()`는 공유 컨텍스트의 CSRF 저장소를 바꿔 버려 쓰지 않는다
 - **완료 조건:** 가입 API 테스트 성공
 
 ### 목 11/26 — 세션 로그인·로그아웃, CSRF

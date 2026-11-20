@@ -12,6 +12,17 @@ server:
     # 에러 응답에 스택 트레이스와 예외 메시지를 넣지 않는다.
     include-stacktrace: never
     include-message: never
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        # HTTPS로 배포할 때는 secure: true 로 바꾼다 (로컬은 HTTP).
+
+logging:
+  pattern:
+    # 모든 로그 줄에 requestId를 붙인다 (RequestIdFilter가 MDC에 넣음).
+    correlation: "[%X{requestId:-}] "
 
 management:
   endpoints:
