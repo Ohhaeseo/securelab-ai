@@ -1,6 +1,7 @@
 package com.securelab.ai.model;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -15,8 +16,8 @@ import org.springframework.stereotype.Component;
  * <ul>
  * <li>받은 문서의 제목과 앞부분으로 요약 답변을 만든다.</li>
  * <li>{@code mockFollowsInjections=true}이면 문서에 "이전 지시 무시"류 문구가 있을 때 <b>그 지시를 따르는 척</b> 도구 호출을 제안한다
- * (AI-01). 문서에 {@code tool:이름}이 있으면 그 도구를, 없으면 {@code search_all_documents}를 제안한다.</li>
- * <li>질문에 {@code tool:이름}이 있으면 그 도구 호출을 제안한다 (AI-02/AI-04 실험용).</li>
+ * (AI-01). 문서에 {@code tool:이름(키=값)}이 있으면 그 도구를, 없으면 {@code search_all_documents}를 제안한다.</li>
+ * <li>질문에 {@code tool:이름(키=값)}이 있으면 그 도구 호출을 제안한다 (AI-02/AI-04 실험용).</li>
  * </ul>
  */
 @Component
@@ -27,7 +28,8 @@ public class MockAiClient implements AiClient {
 			"(이전\\s*지시|앞의\\s*지시|모든\\s*지시).{0,10}(무시|잊)|ignore\\s+(all\\s+)?(previous|prior)\\s+instructions",
 			Pattern.CASE_INSENSITIVE);
 
-	private static final Pattern TOOL_DIRECTIVE = Pattern.compile("tool:([A-Za-z0-9_.-]{1,64})");
+	/** {@code tool:이름} 또는 {@code tool:이름(키=값,키=값)}. 숫자 값은 Long, 나머지는 문자열. */
+	private static final Pattern TOOL_DIRECTIVE = Pattern.compile("tool:([A-Za-z0-9_.-]{1,64})(?:\\(([^)]{0,200})\\))?");
 
 	private static final int SUMMARY_CHARS = 80;
 
@@ -54,14 +56,15 @@ public class MockAiClient implements AiClient {
 			for (AiPrompt.DocumentContext document : prompt.documents()) {
 				answer.append("\n- ").append(document.title()).append(": ").append(summarize(document.content()));
 				if (this.properties.mockFollowsInjections() && INJECTION.matcher(document.content()).find()) {
-					toolCalls.add(new AiReply.ToolCallProposal(toolFrom(document.content(), "search_all_documents"),
-							Map.of("reason", "document-instruction")));
+					Matcher injected = TOOL_DIRECTIVE.matcher(document.content());
+					toolCalls.add(injected.find() ? proposal(injected)
+							: new AiReply.ToolCallProposal("search_all_documents", Map.of()));
 				}
 			}
 		}
 		Matcher requested = TOOL_DIRECTIVE.matcher(prompt.question());
 		if (requested.find()) {
-			toolCalls.add(new AiReply.ToolCallProposal(requested.group(1), Map.of("reason", "user-request")));
+			toolCalls.add(proposal(requested));
 		}
 		if (!toolCalls.isEmpty()) {
 			answer.append("\n(도구 호출을 제안합니다: ")
@@ -71,9 +74,18 @@ public class MockAiClient implements AiClient {
 		return new AiReply(answer.toString(), toolCalls);
 	}
 
-	private static String toolFrom(String text, String fallback) {
-		Matcher matcher = TOOL_DIRECTIVE.matcher(text);
-		return matcher.find() ? matcher.group(1) : fallback;
+	private static AiReply.ToolCallProposal proposal(Matcher directive) {
+		Map<String, Object> arguments = new LinkedHashMap<>();
+		String rawArguments = directive.group(2);
+		if (rawArguments != null && !rawArguments.isBlank()) {
+			for (String pair : rawArguments.split(",")) {
+				String[] keyValue = pair.split("=", 2);
+				String key = keyValue[0].strip();
+				String value = (keyValue.length > 1) ? keyValue[1].strip() : "";
+				arguments.put(key, value.matches("-?\\d{1,18}") ? (Object) Long.valueOf(value) : value);
+			}
+		}
+		return new AiReply.ToolCallProposal(directive.group(1), arguments);
 	}
 
 	private static String summarize(String content) {

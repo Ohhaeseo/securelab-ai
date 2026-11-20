@@ -12,6 +12,9 @@ public enum SecurityEventType {
 	RATE_LIMITED,
 
 	/** 로그인 실패 누적으로 일시 차단 (SEC-03). 차단이 시작될 때 한 번 기록한다. */
-	LOGIN_BLOCKED
+	LOGIN_BLOCKED,
+
+	/** AI가 제안한 도구 호출을 정책이 거부 (AI-01/02/04). */
+	AI_TOOL_DENIED
 
 }

@@ -16,8 +16,14 @@ import jakarta.persistence.Table;
 @Table(name = "ai_tool_calls")
 public class AiToolCall {
 
-	/** 실행 정책 도입 전(5주차): 기록만 하고 실행하지 않는다. */
+	/** 실행 정책 도입 전(5주차) 기록. 7주차부터는 쓰지 않는다. */
 	public static final String PROPOSED = "PROPOSED";
+
+	/** 정책을 통과해 현재 사용자 권한으로 실행함. */
+	public static final String ALLOWED = "ALLOWED";
+
+	/** 정책이 거부함. 실행하지 않음. */
+	public static final String DENIED = "DENIED";
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
