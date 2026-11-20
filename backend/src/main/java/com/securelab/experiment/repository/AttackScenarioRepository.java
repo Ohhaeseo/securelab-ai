@@ -1,6 +1,7 @@
 package com.securelab.experiment.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.securelab.experiment.entity.AttackScenario;
 
@@ -12,5 +13,7 @@ import org.springframework.data.repository.Repository;
 public interface AttackScenarioRepository extends Repository<AttackScenario, Long> {
 
 	List<AttackScenario> findAllByOrderByIdAsc();
+
+	Optional<AttackScenario> findByCode(String code);
 
 }

@@ -43,6 +43,13 @@ securelab:
     mock-follows-injections: true
     max-documents: 5
     max-document-chars: 2000
+    # 로컬 Ollama (6주차). 루프백 주소만 허용 — 문서가 외부로 나가지 않게 (ADR-0006)
+    ollama:
+      base-url: http://127.0.0.1:11434
+      model: qwen2.5:1.5b
+      timeout: 120s
+      temperature: 0.7
+      max-tokens: 256
   # IP·계정 식별자가 든 기록의 보존 기간. 매일 03:30에 정리한다.
   retention:
     login-attempts: 30d

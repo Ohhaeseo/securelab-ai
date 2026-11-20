@@ -65,6 +65,9 @@ public class ScenarioRunner {
 		List<Sec04Result> floods = new ArrayList<>();
 		List<Sec03Result> bruteForces = new ArrayList<>();
 		for (Map.Entry<String, URI> target : targets.entrySet()) {
+			requireSecureLabTarget(target.getKey(), target.getValue());
+		}
+		for (Map.Entry<String, URI> target : targets.entrySet()) {
 			System.out.printf("[%s] %s — 워밍업 %d회, 측정 %d회%n", target.getKey(), target.getValue(), warmup, trials);
 			for (int trial = 1; trial <= warmup + trials; trial++) {
 				List<Measurement> result = runTrial(target.getKey(), target.getValue(), trial - warmup);
@@ -250,6 +253,18 @@ public class ScenarioRunner {
 
 	record Sec03Result(String target, int maxAttempts, int blockedAt, double msUntilBlock, int correctPasswordStatus,
 			int bystanderStatus, int stuffingBlockedAt) {
+	}
+
+	/**
+	 * 공격 요청을 보내기 전에 대상이 SecureLab 앱(backend 또는 vulnerable-api)인지 확인한다. 같은 포트에 다른 프로젝트가 떠 있으면 중단한다.
+	 */
+	static void requireSecureLabTarget(String name, URI base) {
+		Session probe = new Session(base);
+		Timed csrf = probe.timed("GET", "/api/v1/auth/csrf", null);
+		if (csrf.status() != 204 || probe.csrfToken() == null) {
+			throw new IllegalStateException("[" + name + "] " + base + " 는 SecureLab 앱이 아닙니다 (GET /api/v1/auth/csrf → "
+					+ csrf.status() + "). 공격 요청을 보내지 않고 중단합니다.");
+		}
 	}
 
 	static URI requireLoopback(URI uri) {

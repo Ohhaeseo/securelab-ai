@@ -1,5 +1,6 @@
 package com.securelab.ai.tools;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,10 @@ public class ToolRegistry {
 
 	public Set<String> names() {
 		return this.tools.keySet();
+	}
+
+	public Collection<AiTool> all() {
+		return this.tools.values();
 	}
 
 	/**

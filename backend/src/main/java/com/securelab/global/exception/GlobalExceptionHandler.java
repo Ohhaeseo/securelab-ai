@@ -17,6 +17,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
@@ -44,6 +45,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException ex) {
 		// 존재하지 않는 계정, 틀린 비밀번호, 비활성 계정을 구분하지 않는다(계정 존재 여부 노출 방지).
 		return toResponse(ErrorCode.INVALID_CREDENTIALS);
+	}
+
+	/** 로컬 모델(Ollama) 연결 실패 등 외부 HTTP 호출 오류. 내부 주소·메시지는 응답에 넣지 않는다. */
+	@ExceptionHandler(RestClientException.class)
+	ResponseEntity<ErrorResponse> handleModelUnavailable(RestClientException ex) {
+		log.warn("model.unavailable: {}", ex.getClass().getSimpleName());
+		return toResponse(ErrorCode.MODEL_UNAVAILABLE);
 	}
 
 	@ExceptionHandler(AccessDeniedException.class)

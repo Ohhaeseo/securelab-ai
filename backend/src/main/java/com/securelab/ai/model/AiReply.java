@@ -8,11 +8,16 @@ import java.util.Map;
  *
  * @param answer 답변 텍스트
  * @param toolCalls 모델이 제안한 도구 호출 — 서버 정책을 거치기 전에는 실행하지 않는다
+ * @param formatValid 모델이 요청한 출력 형식(JSON)을 지켰는지 (실험 기록용)
  */
-public record AiReply(String answer, List<ToolCallProposal> toolCalls) {
+public record AiReply(String answer, List<ToolCallProposal> toolCalls, boolean formatValid) {
 
 	public AiReply {
 		toolCalls = List.copyOf(toolCalls);
+	}
+
+	public AiReply(String answer, List<ToolCallProposal> toolCalls) {
+		this(answer, toolCalls, true);
 	}
 
 	/**

@@ -20,6 +20,7 @@ public enum ErrorCode {
 	RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
 	LOGIN_TEMPORARILY_BLOCKED(HttpStatus.TOO_MANY_REQUESTS, "로그인 실패가 많아 잠시 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요."),
 	REQUEST_FAILED(HttpStatus.BAD_REQUEST, "요청을 처리할 수 없습니다."),
+	MODEL_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI 모델을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요."),
 	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
 
 	private final HttpStatus status;
