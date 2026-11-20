@@ -19,6 +19,13 @@ server:
         same-site: lax
         # HTTPS로 배포할 때는 secure: true 로 바꾼다 (로컬은 HTTP).
 
+springdoc:
+  # API 문서는 기본으로 끈다. local 프로필에서만 켠다.
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 logging:
   pattern:
     # 모든 로그 줄에 requestId를 붙인다 (RequestIdFilter가 MDC에 넣음).

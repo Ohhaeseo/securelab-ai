@@ -49,6 +49,12 @@ class AccessControlMatrixTests extends ApiIntegrationTest {
 	}
 
 	@Test
+	void apiDocsAreDisabledOutsideLocalProfile() {
+		assertThat(newClient().get("/v3/api-docs").status()).isEqualTo(404);
+		assertThat(newClient().get("/swagger-ui/index.html").status()).isEqualTo(404);
+	}
+
+	@Test
 	void unknownPathForLoggedInUserIs404Json() {
 		ApiClient user = newClient();
 		user.signupAndLogin(uniqueEmail("user"), PASSWORD);

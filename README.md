@@ -17,7 +17,8 @@
 ![Redis](https://img.shields.io/badge/Redis-planned-DC382D?logo=redis&logoColor=white)
 ![Ollama](https://img.shields.io/badge/Ollama-planned-000000?logo=ollama&logoColor=white)
 
-![status](https://img.shields.io/badge/status-week_1_in_progress-orange)
+![status](https://img.shields.io/badge/status-week_2_in_progress-orange)
+![tests](https://img.shields.io/badge/tests-51_passing-brightgreen)
 
 [기획 정리](docs/planning/plan-summary.md) · [로드맵](docs/planning/roadmap.md) · [아키텍처](docs/architecture.md) · [위협 모델](docs/threat-model.md) · [API 명세](docs/api-spec.md) · [실험 결과](docs/experiment-results.md)
 
@@ -152,6 +153,26 @@ AI 도구 실행 흐름과 신뢰 경계 표는 [docs/architecture.md](docs/arch
 
 > AI 시나리오는 **모델 반응**(악성 답변 생성)과 **실제 행위**(권한 우회·무단 실행)를 따로 셉니다. 둘을 같은 "성공"으로 계산하지 않습니다.
 
+## ✅ 구현 현황
+
+| 구분 | 내용 |
+| --- | --- |
+| 인증 | 가입(Argon2id 해시, 이메일 정규화), JSON 로그인, 로그아웃 — 세션 쿠키(HttpOnly·SameSite=Lax) |
+| 세션 보호 | 로그인 시 세션 ID 교체(세션 고정 방지), 로그아웃 시 세션 무효화 |
+| CSRF | `XSRF-TOKEN` 쿠키 → `X-XSRF-TOKEN` 헤더, 로그인 시 토큰 재발급 |
+| 인가 | 문서 소유권 검사(`DocumentAccessPolicy`), 프로필은 본인·관리자만, 관리 API는 ADMIN |
+| 계정 열거 방지 | 로그인 실패 응답 통일, 남의 프로필 조회는 존재 여부와 관계없이 403 |
+| 오류 응답 | 공통 JSON 형식 + `requestId`, 스택 트레이스·입력 값 비노출 |
+| 운영 | Actuator `health`만 노출, Swagger는 `local` 프로필에서만 |
+| 테스트 | 실제 HTTP + Testcontainers PostgreSQL 통합 테스트 51건 (SEC-01 읽기, SEC-02) |
+
+| API | 권한 |
+| --- | --- |
+| `GET /api/v1/auth/csrf` · `POST /api/v1/auth/signup` · `POST /api/v1/auth/login` | 익명 |
+| `POST /api/v1/auth/logout` · `GET /api/v1/users/me` | 로그인 |
+| `GET /api/v1/users/{id}` | 본인 또는 관리자 |
+| `POST /api/v1/documents` · `GET /api/v1/documents/{id}` | 로그인 (조회는 소유자 또는 공개 문서) |
+
 ## 🗓 로드맵
 
 ```mermaid
@@ -174,8 +195,8 @@ gantt
 
 | 주차 | 기간 | 목표 | 검증 가능한 산출물 | 상태 |
 | :---: | --- | --- | --- | :---: |
-| 1 | 11/23–11/29 | 환경 구축, DB, 가입·로그인, 소유권 인가 | 기본 API + 인증 테스트 | 🟡 |
-| 2 | 11/30–12/06 | 문서 CRUD, 관리자 접근 제어, 오류 응답 | BOLA 테스트, API 문서 | ⚪ |
+| 1 | 11/23–11/29 | 환경 구축, DB, 가입·로그인, 소유권 인가 | 기본 API + 인증 테스트 | ✅ |
+| 2 | 11/30–12/06 | 문서 CRUD, 관리자 접근 제어, 오류 응답 | BOLA 테스트, API 문서 | 🟡 |
 | 3 | 12/07–12/13 | 격리된 로컬 취약점 시뮬레이터 | 공격 재현 기록, 방어 비교 | ⚪ |
 | 4 | 12/14–12/20 | Redis 요청 제한, 로그인 탐지, 감사 로그 | 429 정책, 보안 이벤트 조회 | ⚪ |
 | 5 | 12/21–12/27 | Mock AI, 소유권 필터링 문서 검색 | 인가된 문서만 AI에 전달 | ⚪ |
@@ -196,18 +217,25 @@ securelab-ai/
 │   │   │   ├── java/com/securelab/
 │   │   │   │   ├── SecureLabApplication.java  # 애플리케이션 진입점
 │   │   │   │   ├── auth/                      # controller · service · dto · security
-│   │   │   │   ├── user/                      # controller · service · entity · repository
-│   │   │   │   ├── document/                  # controller · service · entity · repository
+│   │   │   │   │   └── security/              # SecurityConfig, AuthenticatedUser, 401/403 JSON 처리
+│   │   │   │   ├── user/                      # controller · service · entity · repository · dto
+│   │   │   │   ├── document/                  # controller · service · entity · repository · dto
+│   │   │   │   │   └── service/               # DocumentService, DocumentAccessPolicy (인가 규칙)
 │   │   │   │   ├── securitylab/               # controller · detection · ratelimit · audit
 │   │   │   │   ├── ai/                        # controller · service · model · policy · tools
 │   │   │   │   ├── experiment/                # controller · service · runner
-│   │   │   │   └── global/                    # config · exception · response
+│   │   │   │   └── global/                    # config · exception · response · web
+│   │   │   │       └── web/                   # RequestIdFilter
 │   │   │   └── resources/
 │   │   │       ├── application.yml            # 공통 설정 (Actuator health만 노출, 에러 정보 비공개)
 │   │   │       ├── application-local.yml      # local 프로필 (infrastructure/.env 로 DB 접속)
 │   │   │       └── db/migration/
 │   │   │           └── V1__init_schema.sql    # users, documents
 │   │   └── test/java/com/securelab/
+│   │       ├── auth/                              # 가입, 로그인·로그아웃, 세션 고정, CSRF 재발급
+│   │       ├── document/                          # SEC-01 문서 소유권
+│   │       ├── security/                          # 엔드포인트별 접근 제어 표 (401/403, SEC-02)
+│   │       ├── support/                           # ApiClient: 실제 HTTP + 쿠키 저장소 테스트 클라이언트
 │   │       ├── ActuatorHealthTests.java           # health 공개·세부 정보 비공개, 그 외 엔드포인트 404
 │   │       ├── SchemaMigrationTests.java          # V1 적용, 이메일·역할·공개 범위·FK 제약
 │   │       ├── SecureLabApplicationTests.java     # 컨텍스트 로드 테스트
@@ -292,6 +320,25 @@ cd backend
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8080/actuator/health   # status: UP
 ```
+
+- Swagger UI: http://127.0.0.1:8080/swagger-ui/index.html (`local` 프로필에서만 열림, CSRF 헤더 자동 전송)
+
+**5. API 호출 예시** — 가입 → 로그인 → 문서 작성. 상태 변경 요청에는 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보냅니다.
+
+```powershell
+$base = 'http://127.0.0.1:8080'
+$s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+Invoke-WebRequest "$base/api/v1/auth/csrf" -WebSession $s -UseBasicParsing | Out-Null
+$xsrf = { ($s.Cookies.GetCookies($base) | Where-Object Name -eq 'XSRF-TOKEN').Value }   # 로그인 후 값이 바뀌므로 매번 읽는다
+$body = @{ email = 'alice@securelab.test'; password = 'correct-horse-battery' } | ConvertTo-Json
+
+Invoke-RestMethod -Method Post "$base/api/v1/auth/signup" -WebSession $s -ContentType 'application/json' -Headers @{ 'X-XSRF-TOKEN' = (& $xsrf) } -Body $body
+Invoke-RestMethod -Method Post "$base/api/v1/auth/login"  -WebSession $s -ContentType 'application/json' -Headers @{ 'X-XSRF-TOKEN' = (& $xsrf) } -Body $body
+Invoke-RestMethod -Method Post "$base/api/v1/documents"   -WebSession $s -ContentType 'application/json' -Headers @{ 'X-XSRF-TOKEN' = (& $xsrf) } -Body '{"title":"first","content":"hello"}'
+Invoke-RestMethod "$base/api/v1/users/me" -WebSession $s
+```
+
+> Windows PowerShell 5.1은 charset 없는 JSON 응답을 ISO-8859-1로 읽어 한글이 깨져 보입니다(저장 값은 정상). 한글은 PowerShell 7이나 Swagger UI에서 확인하세요.
 
 ## 📚 문서
 

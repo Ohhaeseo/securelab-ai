@@ -14,3 +14,14 @@ spring:
     url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_NAME:securelab}
     username: ${DB_USERNAME:securelab}
     password: ${DB_PASSWORD}
+
+# Swagger UI: http://127.0.0.1:8080/swagger-ui/index.html
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    # XSRF-TOKEN 쿠키를 읽어 X-XSRF-TOKEN 헤더로 자동 전송
+    csrf:
+      enabled: true
+    with-credentials: true
