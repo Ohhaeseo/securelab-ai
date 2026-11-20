@@ -19,7 +19,7 @@ class AccessControlMatrixTests extends ApiIntegrationTest {
 	@CsvSource({ "GET, /api/v1/users/me", "GET, /api/v1/users/1", "GET, /api/v1/documents",
 			"GET, /api/v1/documents/1", "POST, /api/v1/documents", "PATCH, /api/v1/documents/1",
 			"DELETE, /api/v1/documents/1", "GET, /api/v1/security/events", "GET, /api/v1/security/metrics",
-			"GET, /actuator/env" })
+			"GET, /api/v1/scenarios", "POST, /api/v1/experiments", "GET, /actuator/env" })
 	void anonymousRequestsToProtectedEndpointsGet401(String method, String path) {
 		ApiResponse response = newClient().send(method, path, null, true);
 
@@ -46,6 +46,13 @@ class AccessControlMatrixTests extends ApiIntegrationTest {
 
 		assertThat(response.status()).isEqualTo(403);
 		assertThat(response.<String>json("$.code")).isEqualTo("ACCESS_DENIED");
+	}
+
+	@Test
+	void labApiDoesNotExistOutsideLabProfileEvenForAdmin() {
+		ApiResponse response = loggedInAdmin().get("/api/v1/scenarios");
+
+		assertThat(response.status()).isEqualTo(404);
 	}
 
 	@Test

@@ -31,6 +31,16 @@ class SchemaMigrationTests {
 	}
 
 	@Test
+	void attackScenariosAreSeededWithSyntheticPayloadsOnly() {
+		Integer total = jdbc.queryForObject("select count(*) from attack_scenarios", Integer.class);
+		Integer nonSynthetic = jdbc.queryForObject(
+				"select count(*) from attack_scenarios where payload not like '[SYNTHETIC]%'", Integer.class);
+
+		assertThat(total).isEqualTo(8);
+		assertThat(nonSynthetic).isZero();
+	}
+
+	@Test
 	void emailMustBeUnique() {
 		insertUser("dup@securelab.test", "USER");
 

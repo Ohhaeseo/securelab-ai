@@ -58,7 +58,8 @@ public class SecurityConfig {
 			.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 			.requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf").permitAll()
 			.requestMatchers(HttpMethod.POST, "/api/v1/auth/signup", "/api/v1/auth/login").permitAll()
-			.requestMatchers("/api/v1/security/**").hasRole("ADMIN")
+			.requestMatchers("/api/v1/security/**", "/api/v1/scenarios/**", "/api/v1/experiments/**")
+			.hasRole("ADMIN")
 			.anyRequest().authenticated());
 
 		// XSRF-TOKEN 쿠키 값을 X-XSRF-TOKEN 헤더로 보내는 방식. 가입·로그인에도 적용한다(로그인 CSRF 방지).
