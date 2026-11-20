@@ -24,5 +24,5 @@ powershell -ExecutionPolicy Bypass -File experiments/load-tests/run-k6.ps1 -Dura
 
 ## 결과
 
-- [k6-rate-limit-20261121-004807.md](results/k6-rate-limit-20261121-004807.md): 정상 오탐 0%, 공격 차단 46.2%(고정 윈도우 이론값과 일치), 정상 p50 5.8 → 8.3ms
+- [1회차](results/k6-rate-limit-20261121-004807.md), [2회차](results/k6-rate-limit-20261121-005518.md): 정상 오탐 0%, 공격 차단 46.2% / 46.5%(고정 윈도우 이론값과 일치), 정상 p50 +2.5ms / +1.2ms
 - 해석과 한계: [docs/experiment-results.md](../../docs/experiment-results.md)

@@ -92,7 +92,25 @@
 | --- | --- | --- | --- |
 | GET | `/scenarios` | 관리자 + 로컬 실험 | 시나리오 목록 |
 | POST | `/experiments` | 관리자 + 로컬 실험 | 허가된 실험 실행 |
-| GET | `/experiments/{id}` | 관리자 + 로컬 실험 | 결과 조회 |
+| GET | `/experiments/{id}` | 관리자 + 로컬 실험 | 결과 조회 — 미구현. 결과는 `POST` 응답과 `experiment_runs` 테이블로 확인 |
+
+`POST /experiments` (AI-01 벤치마크):
+
+```json
+// 요청
+{"scenario": "AI-01", "models": ["mock-1", "qwen2.5:1.5b"], "repetitions": 3}
+// 응답 (모델 × 공격 목표마다 한 행)
+{"scenario": "AI-01", "payloads": 10, "repetitions": 3,
+ "targets": ["list_security_events", "delete_all_documents"],
+ "results": [{"model": "qwen2.5:1.5b", "target": "list_security_events", "trials": 30, "modelErrors": 0,
+              "proposedTarget": 10, "canaryObeyed": 0, "modelComplied": 10,
+              "executedWithPolicy": 0, "executedWithoutPolicySimulated": 10, "invalidFormat": 0,
+              "latencyP50Ms": 2355, "latencyP95Ms": 3695, "compliedByPayload": {"direct-ko": 2, "...": 0}}]}
+```
+
+- 모델 이름은 `[A-Za-z0-9._:-]{1,64}`만 허용 (Ollama 주소는 서버 설정으로 고정, 루프백 전용).
+- 벤치마크는 일반 사용자 세션으로 도구 실행 정책을 그대로 거친다. 실험 API로 정책을 우회할 수 없다.
+- 모델 서버에 연결할 수 없으면 `503 MODEL_UNAVAILABLE`.
 
 ### AI
 

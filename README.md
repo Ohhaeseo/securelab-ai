@@ -18,7 +18,7 @@
 ![Ollama](https://img.shields.io/badge/Ollama-0.40-000000?logo=ollama&logoColor=white)
 
 ![status](https://img.shields.io/badge/status-week_8_measured-blue)
-![tests](https://img.shields.io/badge/tests-116_passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-126_passing-brightgreen)
 [![CI](https://github.com/Ohhaeseo/securelab-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/Ohhaeseo/securelab-ai/actions/workflows/ci.yml)
 
 [기획 정리](docs/planning/plan-summary.md) · [로드맵](docs/planning/roadmap.md) · [아키텍처](docs/architecture.md) · [위협 모델](docs/threat-model.md) · [API 명세](docs/api-spec.md) · [실험 결과](docs/experiment-results.md)
@@ -171,7 +171,7 @@ AI 도구 실행 흐름과 신뢰 경계 표는 [docs/architecture.md](docs/arch
 | 실험 격리 | 취약 대조군 `vulnerable-api`(인가만 제거, 루프백 전용), 실험 API는 `lab` 프로필 + ADMIN |
 | AI 문서 도우미 | Mock LLM, 인가된 문서만 모델에 전달(키워드 검색은 인가 조건과 한 쿼리, ID 지정은 모델 호출 전 403 — AI-03) |
 | AI 도구 정책 | 모델은 제안만, 서버가 판정: 호출 수 상한 → 허용 목록(AI-04) → 인자 스키마 → 역할(AI-02) → 현재 사용자 권한으로 실행. 읽기 전용 도구만 (ADR-0005) |
-| 테스트·CI | backend 103건 (실제 HTTP + Testcontainers PostgreSQL·Redis, 로그 점검 포함) + vulnerable-api 13건, GitHub Actions |
+| 테스트·CI | backend 113건 (실제 HTTP + Testcontainers PostgreSQL·Redis, 로그 점검 포함) + vulnerable-api 13건, GitHub Actions |
 
 | API | 권한 |
 | --- | --- |
@@ -200,7 +200,7 @@ AI 도구 실행 흐름과 신뢰 경계 표는 [docs/architecture.md](docs/arch
 | SEC-03 한 계정 비밀번호 반복 대입 | 30회 실패 후 맞는 비밀번호로 **로그인 성공** | 5회 실패 후 차단 (맞는 비밀번호도 429), 같은 IP 다른 계정은 정상 |
 | SEC-03 여러 계정 순회(스터핑) | 차단 없음 | IP 누적 실패 20회에서 차단 |
 | SEC-04 150회 연속 호출 | 150회 모두 허용 | 121번째부터 429, 다른 사용자 영향 없음 |
-| SEC-04 부하 (k6, 정상 10명 + 공격 2명, 90초) | — | 공격 46% 차단, **정상 오탐 0%**, 정상 p50 +2.5ms |
+| SEC-04 부하 (k6, 정상 10명 + 공격 2명, 90초 × 2회) | — | 공격 46% 차단, **정상 오탐 0%**, 정상 p50 +1.2~2.5ms |
 
 | AI-01 문서 속 악성 지시 (페이로드 10종 × 3회) | 모델 반응률 | 정책 게이트 ON 실제 행위 |
 | --- | ---: | ---: |
@@ -394,6 +394,21 @@ Invoke-RestMethod "$base/api/v1/users/me" -WebSession $s
 ```
 
 > Windows PowerShell 5.1은 charset 없는 JSON 응답을 ISO-8859-1로 읽어 한글이 깨져 보입니다(저장 값은 정상). 한글은 PowerShell 7이나 Swagger UI에서 확인하세요.
+
+**6. AI 도우미를 로컬 모델로** (선택) — 기본은 Mock 모델입니다. [Ollama](https://ollama.com/)를 설치하고 모델을 받은 뒤:
+
+```powershell
+ollama pull qwen2.5:1.5b
+$env:SECURELAB_AI_PROVIDER = 'ollama'; .\gradlew.bat bootRun   # 127.0.0.1:11434의 qwen2.5:1.5b 사용
+```
+
+**7. 실험 재현** — 전용 포트를 쓰고, 응답한 서버가 SecureLab인지 확인한 뒤에만 실행합니다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File experiments/api-security/run-sec-experiment.ps1     # SEC-01~04 (약 1분)
+powershell -ExecutionPolicy Bypass -File experiments/load-tests/run-k6.ps1                   # 요청 제한 부하 (약 5분, k6 필요)
+powershell -ExecutionPolicy Bypass -File experiments/prompt-injection/run-ai-benchmark.ps1   # AI-01 (약 7분, Ollama 필요)
+```
 
 ## 📚 문서
 
