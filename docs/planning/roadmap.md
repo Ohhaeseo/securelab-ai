@@ -122,10 +122,12 @@
 - [x] 모델이 제안한 도구 호출은 `PROPOSED`로 기록만 하고 실행하지 않음 (실행 정책은 7주차)
 - [x] AI-03 테스트: 모델에 전달된 입력을 가로채 남의 비공개 문서가 0건인지 확인 — 통합 테스트 6건
 
-### 6주 — Ollama, Prompt Injection 벤치마크
-- Ollama 설치, 1~3B급 모델 후보별 RAM·응답 속도 측정
-- Spring AI 연동 (Boot 4.1 호환 버전 확인)
-- AI-01 벤치마크: 모델 반응과 실제 행위를 따로 기록, ASR 기록
+### 6주 — Ollama, Prompt Injection 벤치마크 ✅ (11/21에 먼저 완료)
+- [x] Ollama 0.40.16 설치(winget), `qwen2.5:1.5b`(986MB)·`gemma3:1b`(806MB), CPU 실행 응답 1~5초
+- [x] Spring AI 대신 Ollama REST 직접 호출 (루프백 전용, 문서 이스케이프) — [ADR-0006](../adr/0006-local-llm-integration.md)
+- [x] AI-01 벤치마크: `POST /api/v1/experiments`(lab + ADMIN), 합성 페이로드 10종 × 목표 2개 × 반복 3, 모델 반응과 실제 행위 분리 기록(`experiment_runs`)
+  - 실측: 모델 반응률 qwen 23~33%, gemma 70% → **정책 ON 실제 행위 0%**
+- [x] `run-ai-benchmark.ps1` (전용 포트 18090, 대상 확인, 결과 JSON·Markdown 저장)
 
 ### 7주 — 도구 실행 정책, CI ✅ (11/20에 먼저 완료, 6주차보다 먼저 진행)
 - [x] `ToolExecutionPolicyService`: 호출 수 상한(3) → 허용 목록 → 인자 스키마 검증 → 역할 → 현재 사용자 권한으로 실행(소유권 재검사) — [ADR-0005](../adr/0005-ai-tool-execution-policy.md)

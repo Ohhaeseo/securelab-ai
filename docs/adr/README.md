@@ -9,8 +9,9 @@
 | [0003](0003-password-encoder.md) | 비밀번호 해시: Argon2id + DelegatingPasswordEncoder | 채택 |
 | [0004](0004-rate-limit-and-login-protection.md) | 요청 제한·로그인 보호와 Redis 장애 정책 | 채택 |
 | [0005](0005-ai-tool-execution-policy.md) | AI 도구 실행 정책 (허용 목록·스키마·역할·현재 사용자 권한, 읽기 전용) | 채택 |
+| [0006](0006-local-llm-integration.md) | 로컬 LLM 연동: Spring AI 대신 Ollama REST 직접 호출, 루프백 전용 | 채택 |
 
-**작성 후보:** Mock LLM 우선 개발, 로컬 모델 선택
+**작성 후보:** Mock LLM 우선 개발
 
 ## 템플릿
 
