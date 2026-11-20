@@ -3,6 +3,7 @@ package com.securelab.global.exception;
 import java.util.List;
 
 import com.securelab.global.response.ErrorResponse;
+import com.securelab.securitylab.detection.LoginBlockedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +31,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(BusinessException.class)
 	ResponseEntity<ErrorResponse> handleBusiness(BusinessException ex) {
 		return toResponse(ex.errorCode());
+	}
+
+	@ExceptionHandler(LoginBlockedException.class)
+	ResponseEntity<ErrorResponse> handleLoginBlocked(LoginBlockedException ex) {
+		return ResponseEntity.status(ex.errorCode().status())
+			.header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.retryAfterSeconds()))
+			.body(ErrorResponse.of(ex.errorCode()));
 	}
 
 	@ExceptionHandler(AuthenticationException.class)

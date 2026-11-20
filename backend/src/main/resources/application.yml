@@ -30,6 +30,12 @@ securelab:
     authenticated-limit: 120
     anonymous-limit: 60
     window: 60s
+  # SEC-03 로그인 보호: (계정+IP) 5회, IP 20회 실패 / 15분 → 남은 시간 동안 차단
+  login-protection:
+    max-failures-per-account-ip: 5
+    max-failures-per-ip: 20
+    window: 15m
+    digest-secret: ${LOGIN_DIGEST_SECRET:}
 
 springdoc:
   # API 문서는 기본으로 끈다. local 프로필에서만 켠다.

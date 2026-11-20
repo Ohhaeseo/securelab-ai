@@ -9,7 +9,9 @@ import com.securelab.user.service.EmailNormalizer;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import com.securelab.securitylab.detection.LoginProtectionService;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
@@ -37,18 +39,36 @@ public class LoginService {
 
 	private final SecurityContextRepository securityContextRepository;
 
+	private final LoginProtectionService loginProtection;
+
 	public LoginService(AuthenticationManager authenticationManager,
 			SessionAuthenticationStrategy sessionAuthenticationStrategy,
-			SecurityContextRepository securityContextRepository) {
+			SecurityContextRepository securityContextRepository, LoginProtectionService loginProtection) {
 		this.authenticationManager = authenticationManager;
 		this.sessionAuthenticationStrategy = sessionAuthenticationStrategy;
 		this.securityContextRepository = securityContextRepository;
+		this.loginProtection = loginProtection;
 	}
 
 	public AuthenticatedUser login(LoginRequest request, HttpServletRequest httpRequest,
 			HttpServletResponse httpResponse) {
-		Authentication authentication = this.authenticationManager.authenticate(UsernamePasswordAuthenticationToken
-			.unauthenticated(EmailNormalizer.normalize(request.email()), request.password()));
+		String email = EmailNormalizer.normalize(request.email());
+		String ip = httpRequest.getRemoteAddr();
+
+		// SEC-03: 차단 중이면 비밀번호를 검증하지 않고 429
+		this.loginProtection.checkAllowed(email, ip);
+
+		Authentication authentication;
+		try {
+			authentication = this.authenticationManager
+				.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(email, request.password()));
+		}
+		catch (AuthenticationException ex) {
+			this.loginProtection.onFailure(email, ip);
+			throw ex;
+		}
+		AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+		this.loginProtection.onSuccess(user.id(), email, ip);
 
 		this.sessionAuthenticationStrategy.onAuthentication(authentication, httpRequest, httpResponse);
 
@@ -57,7 +77,7 @@ public class LoginService {
 		this.securityContextHolderStrategy.setContext(context);
 		this.securityContextRepository.saveContext(context, httpRequest, httpResponse);
 
-		return (AuthenticatedUser) authentication.getPrincipal();
+		return user;
 	}
 
 }
