@@ -19,7 +19,8 @@ class AccessControlMatrixTests extends ApiIntegrationTest {
 	@CsvSource({ "GET, /api/v1/users/me", "GET, /api/v1/users/1", "GET, /api/v1/documents",
 			"GET, /api/v1/documents/1", "POST, /api/v1/documents", "PATCH, /api/v1/documents/1",
 			"DELETE, /api/v1/documents/1", "GET, /api/v1/security/events", "GET, /api/v1/security/metrics",
-			"GET, /api/v1/scenarios", "POST, /api/v1/experiments", "GET, /actuator/env" })
+			"GET, /api/v1/scenarios", "POST, /api/v1/experiments", "POST, /api/v1/ai/sessions",
+			"POST, /api/v1/ai/sessions/1/messages", "GET, /actuator/env" })
 	void anonymousRequestsToProtectedEndpointsGet401(String method, String path) {
 		ApiResponse response = newClient().send(method, path, null, true);
 

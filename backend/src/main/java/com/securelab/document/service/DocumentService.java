@@ -1,5 +1,11 @@
 package com.securelab.document.service;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
 import com.securelab.auth.security.AuthenticatedUser;
 import com.securelab.document.dto.DocumentCreateRequest;
 import com.securelab.document.dto.DocumentResponse;
@@ -85,6 +91,47 @@ public class DocumentService {
 			throw denied("DOCUMENT_DELETE", user, documentId);
 		}
 		this.documentRepository.delete(document);
+	}
+
+	/**
+	 * AI 도우미가 참고할 문서를 ID로 지정한 경우. 하나라도 읽을 권한이 없으면 403 — 모델 호출 전에 차단한다 (AI-03).
+	 */
+	@Transactional(readOnly = true)
+	public List<DocumentResponse> getReadableForAssistant(AuthenticatedUser user, List<Long> documentIds) {
+		List<DocumentResponse> documents = new ArrayList<>();
+		for (Long documentId : documentIds) {
+			Document document = findOrThrow(documentId);
+			if (!this.accessPolicy.canRead(user, document)) {
+				throw denied("AI_DOCUMENT_ACCESS", user, documentId);
+			}
+			documents.add(DocumentResponse.from(document));
+		}
+		return documents;
+	}
+
+	/**
+	 * AI 도우미용 키워드 검색. 읽을 수 있는 문서(본인 + 공개) 안에서만 DB 쿼리로 찾는다 (AI-03). 응답 후 텍스트 필터에 기대지 않는다.
+	 */
+	@Transactional(readOnly = true)
+	public List<DocumentResponse> searchReadableForAssistant(AuthenticatedUser user, List<String> keywords,
+			int limit) {
+		Map<Long, DocumentResponse> found = new LinkedHashMap<>();
+		PageRequest page = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "id"));
+		for (String keyword : keywords) {
+			String pattern = "%" + escapeLike(keyword.toLowerCase(Locale.ROOT)) + "%";
+			for (Document document : this.documentRepository.searchReadableBy(user.id(), Visibility.PUBLIC, pattern,
+					page)) {
+				found.putIfAbsent(document.getId(), DocumentResponse.from(document));
+			}
+			if (found.size() >= limit) {
+				break;
+			}
+		}
+		return found.values().stream().limit(limit).toList();
+	}
+
+	private static String escapeLike(String value) {
+		return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
 	}
 
 	private Document findOrThrow(Long documentId) {

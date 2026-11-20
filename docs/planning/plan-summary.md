@@ -90,7 +90,7 @@
 | ID | 항목 | 문제 | 권장안 | 결정 시점 |
 | --- | --- | --- | --- | --- |
 | I-1 | 취약 앱 위치 | 4장은 "격리된 별도 앱/컨테이너"인데 8장 저장소 구조에 그 자리가 없다. `experiment_runs.defense_enabled=false` 실험을 어디서 돌리는지도 정해지지 않았다. | **반영됨:** `experiments/api-security/vulnerable-api/` 별도 앱(인증은 동일, 인가만 제거, 메모리 저장소, 루프백 전용) → [ADR-0002](../adr/0002-isolated-vulnerable-lab.md) | ✅ 2026-11-20 |
-| I-2 | 실험 결과 스키마 | 7장은 "모델 반응과 도구 실행 결과를 따로 기록"하라고 하지만 `experiment_runs`에는 `success` 하나뿐이다. AI-04의 "감사 기록"을 남길 테이블도 없다. | `experiment_runs`에 `model_complied`, `action_executed`, `policy_code`, `http_status`, `target`(VULNERABLE/PROTECTED) 추가. 도구 호출 감사용 `ai_tool_calls` 테이블 추가. → [database.md](../database.md) | 5주차 마이그레이션 전 |
+| I-2 | 실험 결과 스키마 | 7장은 "모델 반응과 도구 실행 결과를 따로 기록"하라고 하지만 `experiment_runs`에는 `success` 하나뿐이다. AI-04의 "감사 기록"을 남길 테이블도 없다. | **반영됨(V6):** `experiment_runs`(target, model_complied, action_executed, policy_code, http_status) + `ai_tool_calls`(인자 SHA-256) | ✅ 2026-11-20 |
 | I-3 | `security_events` 컬럼 | 5장 원칙(판정 코드 중심 기록)에 비해 IP, 대상 리소스, 판정 코드 컬럼이 없다. | **반영됨(V2):** `ip_address`, `resource_type`, `resource_id`, `reason_code` 추가 | ✅ 2026-11-20 |
 | I-4 | CSRF 토큰 전달 | 세션 + CSRF로 정했지만 Swagger·k6·테스트 클라이언트가 토큰을 받는 방법이 API 명세에 없다. | **반영됨:** `XSRF-TOKEN` 쿠키 → `X-XSRF-TOKEN` 헤더 + `GET /api/v1/auth/csrf`, 로그인 시 재발급 → [ADR-0001](../adr/0001-session-cookie-auth.md) | ✅ 2026-11-20 |
 | I-5 | `email_digest`, 보존 기간 | 단순 해시는 이메일 사전 대입으로 되돌릴 수 있다. 보존 기간(7~30일) 삭제 작업이 일정에 없다. | **반영됨:** HMAC-SHA256(`LOGIN_DIGEST_SECRET`), 다이제스트 형식 CHECK, 30일 보존 정리 작업(매일 03:30) | ✅ 2026-11-20 |

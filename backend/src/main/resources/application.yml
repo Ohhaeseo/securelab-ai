@@ -36,6 +36,13 @@ securelab:
     max-failures-per-ip: 20
     window: 15m
     digest-secret: ${LOGIN_DIGEST_SECRET:}
+  # AI 문서 도우미 (M5). provider: mock(기본) | ollama(6주차)
+  ai:
+    provider: mock
+    # Mock 모델이 문서 속 지시를 따르는 척한다 — 정책 게이트(7주차)가 막아야 할 "넘어가는 모델"
+    mock-follows-injections: true
+    max-documents: 5
+    max-document-chars: 2000
   # IP·계정 식별자가 든 기록의 보존 기간. 매일 03:30에 정리한다.
   retention:
     login-attempts: 30d

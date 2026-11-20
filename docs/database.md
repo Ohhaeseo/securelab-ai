@@ -90,5 +90,7 @@ ASR은 `action_executed` 기준으로 계산한다. 기존 `success`는 `action_
 | V2 | `security_events` — 기획서 컬럼 + I-3(`reason_code`, `resource_type`, `resource_id`, `ip_address`), severity CHECK, (event_type, occurred_at)·(occurred_at) 인덱스 | 2026-11-20 |
 | V3 | `attack_scenarios` + 시드 8건 (합성 페이로드만, `[SYNTHETIC]` 표시) | 2026-11-20 |
 | V4 | `login_attempts` — 기획서 컬럼 + `blocked`(차단으로 거부한 시도). `email_digest`는 HMAC-SHA256 16진수 64자만 허용(CHECK), (email_digest, ip_address, created_at) 인덱스 | 2026-11-20 |
+| V5 | `ai_sessions` — 세션 메타데이터만 (질문·답변·문서 원문 저장 안 함), status CHECK | 2026-11-20 |
+| V6 | `experiment_runs` — I-2 반영: 기획서의 `success` 대신 `model_complied`(모델 반응)·`action_executed`(실제 침해, ASR 기준), `target`, `policy_code`, `http_status`. `ai_tool_calls` — 도구 이름, 인자 SHA-256, decision(PROPOSED/ALLOWED/DENIED) | 2026-11-20 |
 
 > 이메일 소문자 CHECK는 대소문자만 다른 이메일로 중복 가입하는 것을 막는다. 애플리케이션은 저장 전에 이메일을 소문자로 정규화해야 한다.
