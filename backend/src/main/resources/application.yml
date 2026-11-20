@@ -1,3 +1,24 @@
 spring:
   application:
     name: securelab
+  jpa:
+    # 스키마는 Flyway가 관리한다. Hibernate는 엔티티와 스키마가 맞는지 검증만 한다.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+server:
+  error:
+    # 에러 응답에 스택 트레이스와 예외 메시지를 넣지 않는다.
+    include-stacktrace: never
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # 웹으로는 health만 노출한다.
+        include: health
+  endpoint:
+    health:
+      show-details: never

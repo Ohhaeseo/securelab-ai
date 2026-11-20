@@ -203,13 +203,17 @@ securelab-ai/
 │   │   │   │   ├── experiment/                # controller · service · runner
 │   │   │   │   └── global/                    # config · exception · response
 │   │   │   └── resources/
-│   │   │       ├── application.yml            # 공통 설정
-│   │   │       └── db/migration/              # Flyway 마이그레이션 (V1__init_schema.sql ~)
+│   │   │       ├── application.yml            # 공통 설정 (Actuator health만 노출, 에러 정보 비공개)
+│   │   │       ├── application-local.yml      # local 프로필 (infrastructure/.env 로 DB 접속)
+│   │   │       └── db/migration/
+│   │   │           └── V1__init_schema.sql    # users, documents
 │   │   └── test/java/com/securelab/
+│   │       ├── ActuatorHealthTests.java           # health 공개·세부 정보 비공개, 그 외 엔드포인트 404
+│   │       ├── SchemaMigrationTests.java          # V1 적용, 이메일·역할·공개 범위·FK 제약
 │   │       ├── SecureLabApplicationTests.java     # 컨텍스트 로드 테스트
 │   │       ├── TestcontainersConfiguration.java   # 테스트용 PostgreSQL 17 컨테이너
 │   │       └── TestSecureLabApplication.java      # Testcontainers DB로 앱 실행
-│   ├── build.gradle                           # 의존성, 의존성 잠금
+│   ├── build.gradle                           # 의존성, 의존성 잠금, bootRun 기본 프로필
 │   ├── gradle.lockfile                        # 고정된 의존성 버전
 │   ├── settings.gradle
 │   └── gradlew, gradlew.bat
@@ -236,7 +240,7 @@ securelab-ai/
 │   ├── api-spec.md                            # 엔드포인트, 응답 규칙
 │   └── experiment-results.md                  # 지표 정의, 측정 결과
 ├── .github/workflows/                         # CI (7주차)
-├── .env.example                               # 백엔드 환경 변수 예시
+├── .env.example                               # 백엔드 추가 환경 변수 예시 (Redis, AI 등)
 ├── .gitignore
 └── README.md
 ```
@@ -275,14 +279,13 @@ cd backend
 .\gradlew.bat build
 ```
 
-**3. 실행** (1주차 임시 방식 — `application-local.yml`이 생기면 바뀝니다)
+**3. 실행** — `local` 프로필이 `infrastructure/.env`의 `DB_PASSWORD`·`DB_PORT`를 읽어 DB에 접속하고, Flyway가 스키마를 적용합니다.
 
 ```powershell
-$env:SPRING_DATASOURCE_URL = 'jdbc:postgresql://127.0.0.1:5432/securelab'   # DB_PORT를 바꿨다면 그 포트
-$env:SPRING_DATASOURCE_USERNAME = 'securelab'
-$env:SPRING_DATASOURCE_PASSWORD = '<infrastructure/.env 의 DB_PASSWORD>'
-java -jar build\libs\backend-0.0.1-SNAPSHOT.jar
+.\gradlew.bat bootRun
 ```
+
+> IDE에서 `SecureLabApplication`을 직접 실행할 때는 활성 프로필을 `local`로, 작업 디렉터리를 `backend/` 또는 저장소 루트로 지정합니다.
 
 **4. 확인**
 

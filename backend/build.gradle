@@ -48,3 +48,8 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// `gradlew bootRun`은 기본으로 local 프로필을 쓴다. SPRING_PROFILES_ACTIVE가 있으면 그 값을 따른다.
+tasks.named('bootRun') {
+	systemProperty 'spring.profiles.active', System.getenv('SPRING_PROFILES_ACTIVE') ?: 'local'
+}

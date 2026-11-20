@@ -35,19 +35,23 @@
 - 참고: 이 PC에는 PostgreSQL 18 서비스가 5432를 쓰고 있어 Compose는 `DB_PORT=55432`로 띄운다.
 - **완료 조건:** 앱 실행, 커밋 성공
 
-### 화 11/24 — DB, 마이그레이션, 헬스 체크
+### 화 11/24 — DB, 마이그레이션, 헬스 체크 ✅ (11/20에 먼저 완료)
 
 - [x] `infrastructure/.env` 생성(무작위 `DB_PASSWORD`), PostgreSQL Compose 기동 (월요일에 함께 완료)
-- [ ] `application-local.yml`에 JDBC URL·자격 증명 환경 변수 연결 (포트는 `DB_PORT`와 맞춤)
-- [ ] Flyway `V1__init_schema.sql` — 권장: `users`, `documents`만 먼저 만들고 나머지 테이블은 해당 주차에 `V2`, `V3`…로 추가 (I-2, I-3 반영 여지)
-- [ ] Actuator는 `health`만 노출
-- **완료 조건:** DB 연결, 헬스 체크 성공
+- [x] `application-local.yml`: `infrastructure/.env`와 루트 `.env`를 읽어 `DB_PORT`·`DB_PASSWORD`로 접속 (OS 환경 변수가 우선)
+- [x] `gradlew bootRun`은 기본으로 `local` 프로필 사용
+- [x] Flyway `V1__init_schema.sql`: `users`, `documents`만 먼저 생성. 나머지 테이블은 해당 주차에 `V2` 이후로 추가 (I-2, I-3 반영 여지)
+  - 기획서 제약에 더해 `CHECK(email = lower(email))`, `CHECK(role IN ('USER','ADMIN'))` 추가
+- [x] Actuator는 `health`만, 세부 정보 없이 노출. 에러 응답에서 스택 트레이스·예외 메시지 제외. `ddl-auto=validate`, `open-in-view=false`
+- [x] 테스트: `SchemaMigrationTests`(제약 7건), `ActuatorHealthTests`(노출 범위 2건) — 전체 10건 통과
+- **완료 조건:** DB 연결, 헬스 체크 성공 — `bootRun`으로 V1 적용, `/actuator/health` UP 확인
 
 ### 수 11/25 — 사용자, 가입
 
 - [ ] 비밀번호 인코더 결정 (I-7)
 - [ ] `User` 엔티티, `UserRepository`
 - [ ] `POST /api/v1/auth/signup`: 입력 검증, 이메일 중복 409, 단방향 해시 저장
+- [ ] 이메일은 공백 제거 후 소문자로 정규화해 저장 (DB에 `ck_users_email_lowercase` 제약이 있어 정규화를 빠뜨리면 저장 실패)
 - **완료 조건:** 가입 API 테스트 성공
 
 ### 목 11/26 — 세션 로그인·로그아웃, CSRF
