@@ -314,11 +314,11 @@ securelab-ai/
 
 **요구 사항:** Windows + WSL2, Docker Desktop, JDK 21
 
-**1. DB 실행**
+**1. DB·Redis 실행**
 
 ```powershell
 Copy-Item infrastructure/.env.example infrastructure/.env
-# infrastructure/.env 의 DB_PASSWORD 를 무작위 값으로 채운다. 생성 예시:
+# infrastructure/.env 의 DB_PASSWORD, REDIS_PASSWORD, LOGIN_DIGEST_SECRET 을 각각 무작위 값으로 채운다. 생성 예시:
 $b = New-Object byte[] 24; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); -join ($b | ForEach-Object { $_.ToString('x2') })
 docker compose --env-file infrastructure/.env -f infrastructure/compose.yml up -d --wait
 ```

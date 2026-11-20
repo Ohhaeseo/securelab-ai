@@ -24,6 +24,11 @@ import org.springframework.security.web.context.DelegatingSecurityContextReposit
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import com.securelab.securitylab.audit.SecurityEventRecorder;
+import com.securelab.securitylab.ratelimit.ApiRateLimitFilter;
+import com.securelab.securitylab.ratelimit.FixedWindowRateLimiter;
+import com.securelab.securitylab.ratelimit.RateLimitProperties;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.csrf.CsrfAuthenticationStrategy;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRequestHandler;
@@ -50,8 +55,14 @@ public class SecurityConfig {
 	@Bean
 	SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, CsrfTokenRepository csrfTokenRepository,
 			SecurityContextRepository securityContextRepository,
-			JsonAuthenticationEntryPoint authenticationEntryPoint, JsonAccessDeniedHandler accessDeniedHandler)
-			throws Exception {
+			JsonAuthenticationEntryPoint authenticationEntryPoint, JsonAccessDeniedHandler accessDeniedHandler,
+			FixedWindowRateLimiter rateLimiter, RateLimitProperties rateLimitProperties,
+			SecurityEventRecorder securityEvents, SecurityErrorWriter errorWriter) throws Exception {
+		// 요청 제한(SEC-04): 세션 인증을 읽은 직후, CSRF·인가 검사 전에 센다.
+		http.addFilterAfter(
+				new ApiRateLimitFilter(rateLimiter, rateLimitProperties, securityEvents, errorWriter),
+				SecurityContextHolderFilter.class);
+
 		http.authorizeHttpRequests((authorize) -> authorize
 			.dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
 			.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()

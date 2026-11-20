@@ -1,5 +1,5 @@
-# 로컬 개발용 최소 구성 (DB). Redis는 4주차에 추가한다.
-# 실행: docker compose --env-file infrastructure/.env -f infrastructure/compose.yml up -d
+# 로컬 개발용 구성: PostgreSQL(데이터), Redis(요청 제한·로그인 실패 카운터)
+# 실행: docker compose --env-file infrastructure/.env -f infrastructure/compose.yml up -d --wait
 name: securelab
 
 services:
@@ -18,6 +18,20 @@ services:
       test: ["CMD-SHELL", "pg_isready -U securelab -d securelab"]
       interval: 5s
       timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4-alpine
+    # 비밀번호 필수, 영속화 끔 (카운터는 TTL이 있는 일시 데이터)
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD}", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
       retries: 5
 
 volumes:
