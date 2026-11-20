@@ -1,0 +1,32 @@
+# Gradle / Java
+.gradle/
+build/
+out/
+bin/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 비밀 정보 (예시 파일만 추적)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# 로그
+*.log
+logs/
+
+# 실험 원본 출력 (요약본만 docs/에 기록)
+experiments/**/results/raw/
