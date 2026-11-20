@@ -70,18 +70,20 @@
 
 | 메서드 | 경로 | 권한 | 설명 |
 | --- | --- | --- | --- |
-| POST | `/documents` | 로그인 | 문서 작성 |
-| GET | `/documents` | 로그인 | 접근 가능한 문서 목록 |
+| POST | `/documents` | 로그인 | 문서 작성 (201, 소유자 = 인증 주체, `visibility` 생략 시 PRIVATE) |
+| GET | `/documents?page=0&size=20` | 로그인 | 접근 가능한 문서 목록 (본인 + 공개, 최신순, `size` 최대 100, 본문 제외) |
 | GET | `/documents/{id}` | 소유자 또는 공개 문서 | 문서 조회 |
-| PATCH | `/documents/{id}` | 소유자 | 문서 수정 |
-| DELETE | `/documents/{id}` | 소유자 | 문서 삭제 |
+| PATCH | `/documents/{id}` | 소유자 | 부분 수정 (`title`, `content`, `visibility`) |
+| DELETE | `/documents/{id}` | 소유자 | 문서 삭제 (204) |
+
+> 관리자도 남의 비공개 문서를 읽거나 바꿀 수 없다 (최소 권한).
 
 ### 보안 관리 (관리자)
 
 | 메서드 | 경로 | 권한 | 설명 |
 | --- | --- | --- | --- |
-| GET | `/security/events` | 관리자 | 보안 이벤트 목록 |
-| GET | `/security/metrics` | 관리자 | 차단·오탐 등 지표 |
+| GET | `/security/events?type=&page=0&size=50` | 관리자 | 보안 이벤트 목록 (`type`: `ACCESS_DENIED`·`CSRF_REJECTED`, 최신순, `size` 최대 200) |
+| GET | `/security/metrics?hours=24` | 관리자 | 기간 내 차단 이벤트 유형별 집계 (`hours` 1~720) |
 
 ### 실험 (관리자 + `lab` 프로필)
 

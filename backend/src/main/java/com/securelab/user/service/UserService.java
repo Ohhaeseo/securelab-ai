@@ -3,6 +3,9 @@ package com.securelab.user.service;
 import com.securelab.auth.security.AuthenticatedUser;
 import com.securelab.global.exception.BusinessException;
 import com.securelab.global.exception.ErrorCode;
+import com.securelab.securitylab.audit.SecurityEventRecorder;
+import com.securelab.securitylab.audit.SecurityEventType;
+import com.securelab.securitylab.audit.Severity;
 import com.securelab.user.dto.UserResponse;
 import com.securelab.user.repository.UserRepository;
 import org.slf4j.Logger;
@@ -18,8 +21,11 @@ public class UserService {
 
 	private final UserRepository userRepository;
 
-	public UserService(UserRepository userRepository) {
+	private final SecurityEventRecorder securityEvents;
+
+	public UserService(UserRepository userRepository, SecurityEventRecorder securityEvents) {
 		this.userRepository = userRepository;
+		this.securityEvents = securityEvents;
 	}
 
 	@Transactional(readOnly = true)
@@ -36,6 +42,8 @@ public class UserService {
 	public UserResponse getUser(AuthenticatedUser principal, Long userId) {
 		if (!principal.isAdmin() && !principal.id().equals(userId)) {
 			log.warn("security.denied resource=user id={} actor={}", userId, principal.id());
+			this.securityEvents.blocked(SecurityEventType.ACCESS_DENIED, Severity.MEDIUM, principal.id(), "USER_READ",
+					"USER", String.valueOf(userId));
 			throw new BusinessException(ErrorCode.ACCESS_DENIED);
 		}
 		return this.userRepository.findById(userId)

@@ -94,10 +94,4 @@ class DocumentOwnershipApiTests extends ApiIntegrationTest {
 		assertThat(anonymous.get("/api/v1/documents/1").status()).isEqualTo(401);
 	}
 
-	private ApiClient loggedInClient(String name) {
-		ApiClient client = newClient();
-		client.signupAndLogin(uniqueEmail(name), PASSWORD);
-		return client;
-	}
-
 }

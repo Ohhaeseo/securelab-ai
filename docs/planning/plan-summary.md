@@ -91,10 +91,10 @@
 | --- | --- | --- | --- | --- |
 | I-1 | 취약 앱 위치 | 4장은 "격리된 별도 앱/컨테이너"인데 8장 저장소 구조에 그 자리가 없다. `experiment_runs.defense_enabled=false` 실험을 어디서 돌리는지도 정해지지 않았다. | `experiments/api-security/vulnerable-api/`에 별도 Spring Boot 앱을 둔다(본 backend 빌드에 포함하지 않음). 방어 OFF 실험은 이 앱(SEC)과 테스트 전용 naive agent(AI)에서만 하고, 본 API는 항상 방어 ON. → [ADR-0002](../adr/0002-isolated-vulnerable-lab.md) | 3주차 시작 전 |
 | I-2 | 실험 결과 스키마 | 7장은 "모델 반응과 도구 실행 결과를 따로 기록"하라고 하지만 `experiment_runs`에는 `success` 하나뿐이다. AI-04의 "감사 기록"을 남길 테이블도 없다. | `experiment_runs`에 `model_complied`, `action_executed`, `policy_code`, `http_status`, `target`(VULNERABLE/PROTECTED) 추가. 도구 호출 감사용 `ai_tool_calls` 테이블 추가. → [database.md](../database.md) | 5주차 마이그레이션 전 |
-| I-3 | `security_events` 컬럼 | 5장 원칙(판정 코드 중심 기록)에 비해 IP, 대상 리소스, 판정 코드 컬럼이 없다. | `ip_address`, `resource_type`, `resource_id`, `reason_code` 추가 | 4주차 전 |
-| I-4 | CSRF 토큰 전달 | 세션 + CSRF로 정했지만 Swagger·k6·테스트 클라이언트가 토큰을 받는 방법이 API 명세에 없다. | `CookieCsrfTokenRepository`(`XSRF-TOKEN` 쿠키 → `X-XSRF-TOKEN` 헤더) + `GET /api/v1/auth/csrf`. JSON 로그인 컨트롤러를 직접 만들면 SecurityContext를 세션에 저장하는 처리를 명시해야 한다. → [ADR-0001](../adr/0001-session-cookie-auth.md) | 11/26 |
+| I-3 | `security_events` 컬럼 | 5장 원칙(판정 코드 중심 기록)에 비해 IP, 대상 리소스, 판정 코드 컬럼이 없다. | **반영됨(V2):** `ip_address`, `resource_type`, `resource_id`, `reason_code` 추가 | ✅ 2026-11-20 |
+| I-4 | CSRF 토큰 전달 | 세션 + CSRF로 정했지만 Swagger·k6·테스트 클라이언트가 토큰을 받는 방법이 API 명세에 없다. | **반영됨:** `XSRF-TOKEN` 쿠키 → `X-XSRF-TOKEN` 헤더 + `GET /api/v1/auth/csrf`, 로그인 시 재발급 → [ADR-0001](../adr/0001-session-cookie-auth.md) | ✅ 2026-11-20 |
 | I-5 | `email_digest`, 보존 기간 | 단순 해시는 이메일 사전 대입으로 되돌릴 수 있다. 보존 기간(7~30일) 삭제 작업이 일정에 없다. | 서버 비밀키 기반 HMAC-SHA256. 4주차에 만료 데이터 정리 작업 추가 | 4주차 |
 | I-6 | "로컬 실험" 권한 | `/scenarios`, `/experiments`의 "관리자 + 로컬 실험" 조건을 어떻게 강제할지 없다. | `lab` 프로필에서만 컨트롤러 빈 등록(`@Profile("lab")`), 기본 프로필에서는 엔드포인트 자체가 없음(404). 관리자 역할도 함께 요구 | 3주차 |
-| I-7 | 비밀번호 인코더 | Spring Security의 `Argon2PasswordEncoder`는 BouncyCastle 의존성이 필요하다. | BouncyCastle을 넣고 Argon2id를 쓰거나, `DelegatingPasswordEncoder` 기본값(bcrypt)을 쓰거나 둘 중 하나로 정한다 | 11/25 |
+| I-7 | 비밀번호 인코더 | Spring Security의 `Argon2PasswordEncoder`는 BouncyCastle 의존성이 필요하다. | **반영됨:** BouncyCastle 1.87 + Argon2id 기본 `DelegatingPasswordEncoder` → [ADR-0003](../adr/0003-password-encoder.md) | ✅ 2026-11-20 |
 | I-8 | 오탐률 기준선 | 오탐률은 "차단된 정상 요청 ÷ 정상 요청"인데 SEC-03/04에 정상 트래픽 정의가 없다. | k6에서 정상 사용자와 공격자 트래픽을 섞는 시나리오로 설계 | 4주차 설계, 8주차 측정 |
 | I-9 | 라이선스 | 저장소 구조에 `LICENSE`가 있지만 종류가 없다. | MIT 등으로 결정 | 첫 공개 커밋 전 |

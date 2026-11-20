@@ -5,21 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.securelab.support.ApiClient;
 import com.securelab.support.ApiIntegrationTest;
 import com.securelab.support.ApiResponse;
-import com.securelab.user.entity.Role;
-import com.securelab.user.entity.User;
-import com.securelab.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 class LoginLogoutApiTests extends ApiIntegrationTest {
-
-	@Autowired
-	UserRepository userRepository;
-
-	@Autowired
-	PasswordEncoder passwordEncoder;
 
 	@Test
 	void loginCreatesHardenedSessionAndMeReturnsCurrentUser() {
@@ -139,17 +128,9 @@ class LoginLogoutApiTests extends ApiIntegrationTest {
 		// 없는 ID도 403: 권한 검사를 먼저 해서 계정 존재 여부를 숨긴다.
 		assertThat(alice.get("/api/v1/users/999999999").status()).isEqualTo(403);
 
-		ApiClient admin = loginAsNewAdmin();
+		ApiClient admin = loggedInAdmin();
 		assertThat(admin.get("/api/v1/users/" + bobId).status()).isEqualTo(200);
 		assertThat(admin.get("/api/v1/users/999999999").status()).isEqualTo(404);
-	}
-
-	private ApiClient loginAsNewAdmin() {
-		String email = uniqueEmail("admin");
-		this.userRepository.save(User.create(email, this.passwordEncoder.encode(PASSWORD), Role.ADMIN));
-		ApiClient admin = newClient();
-		assertThat(admin.login(email, PASSWORD).status()).isEqualTo(200);
-		return admin;
 	}
 
 }

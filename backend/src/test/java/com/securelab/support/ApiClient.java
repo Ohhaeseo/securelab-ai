@@ -99,7 +99,7 @@ public final class ApiClient {
 		return send(method, path, json, withCsrf, Map.of());
 	}
 
-	private ApiResponse send(String method, String path, String json, boolean withCsrf, Map<String, String> headers) {
+	public ApiResponse send(String method, String path, String json, boolean withCsrf, Map<String, String> headers) {
 		HttpRequest.Builder request = HttpRequest.newBuilder(this.baseUri.resolve(path))
 			.method(method, (json != null) ? HttpRequest.BodyPublishers.ofString(json)
 					: HttpRequest.BodyPublishers.noBody());

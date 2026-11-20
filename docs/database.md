@@ -87,5 +87,6 @@ ASR은 `action_executed` 기준으로 계산한다. 기존 `success`는 `action_
 | 버전 | 내용 | 작성일 |
 | --- | --- | --- |
 | V1 | `users`, `documents`, `idx_documents_owner_id`. 기획서 제약에 이메일 소문자·역할 CHECK 추가 | 2026-11-20 |
+| V2 | `security_events` — 기획서 컬럼 + I-3(`reason_code`, `resource_type`, `resource_id`, `ip_address`), severity CHECK, (event_type, occurred_at)·(occurred_at) 인덱스 | 2026-11-20 |
 
 > 이메일 소문자 CHECK는 대소문자만 다른 이메일로 중복 가입하는 것을 막는다. 애플리케이션은 저장 전에 이메일을 소문자로 정규화해야 한다.

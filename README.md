@@ -17,8 +17,8 @@
 ![Redis](https://img.shields.io/badge/Redis-planned-DC382D?logo=redis&logoColor=white)
 ![Ollama](https://img.shields.io/badge/Ollama-planned-000000?logo=ollama&logoColor=white)
 
-![status](https://img.shields.io/badge/status-week_2_in_progress-orange)
-![tests](https://img.shields.io/badge/tests-51_passing-brightgreen)
+![status](https://img.shields.io/badge/status-week_2_done-blue)
+![tests](https://img.shields.io/badge/tests-63_passing-brightgreen)
 
 [기획 정리](docs/planning/plan-summary.md) · [로드맵](docs/planning/roadmap.md) · [아키텍처](docs/architecture.md) · [위협 모델](docs/threat-model.md) · [API 명세](docs/api-spec.md) · [실험 결과](docs/experiment-results.md)
 
@@ -163,15 +163,19 @@ AI 도구 실행 흐름과 신뢰 경계 표는 [docs/architecture.md](docs/arch
 | 인가 | 문서 소유권 검사(`DocumentAccessPolicy`), 프로필은 본인·관리자만, 관리 API는 ADMIN |
 | 계정 열거 방지 | 로그인 실패 응답 통일, 남의 프로필 조회는 존재 여부와 관계없이 403 |
 | 오류 응답 | 공통 JSON 형식 + `requestId`, 스택 트레이스·입력 값 비노출 |
+| 감사 | 접근 거부·역할 위반·CSRF 거부를 `security_events`에 기록 (requestId, IP, 대상, 판정 코드 — 본문은 저장 안 함) |
 | 운영 | Actuator `health`만 노출, Swagger는 `local` 프로필에서만 |
-| 테스트 | 실제 HTTP + Testcontainers PostgreSQL 통합 테스트 51건 (SEC-01 읽기, SEC-02) |
+| 테스트 | 실제 HTTP + Testcontainers PostgreSQL 통합 테스트 63건 (SEC-01 읽기·쓰기, SEC-02) |
 
 | API | 권한 |
 | --- | --- |
 | `GET /api/v1/auth/csrf` · `POST /api/v1/auth/signup` · `POST /api/v1/auth/login` | 익명 |
 | `POST /api/v1/auth/logout` · `GET /api/v1/users/me` | 로그인 |
 | `GET /api/v1/users/{id}` | 본인 또는 관리자 |
-| `POST /api/v1/documents` · `GET /api/v1/documents/{id}` | 로그인 (조회는 소유자 또는 공개 문서) |
+| `POST /api/v1/documents` · `GET /api/v1/documents` | 로그인 (목록은 본인 + 공개 문서) |
+| `GET /api/v1/documents/{id}` | 소유자 또는 공개 문서 |
+| `PATCH /api/v1/documents/{id}` · `DELETE /api/v1/documents/{id}` | 소유자만 (관리자도 불가) |
+| `GET /api/v1/security/events` · `GET /api/v1/security/metrics` | 관리자 |
 
 ## 🗓 로드맵
 
@@ -181,8 +185,8 @@ gantt
   dateFormat YYYY-MM-DD
   axisFormat %m/%d
   section P0 API 보안
-  환경 구축 · 인증 · 소유권 인가   :active, w1, 2026-11-23, 7d
-  문서 CRUD · 관리자 접근 제어     :w2, after w1, 7d
+  환경 구축 · 인증 · 소유권 인가   :done, w1, 2026-11-23, 7d
+  문서 CRUD · 관리자 접근 제어     :done, w2, after w1, 7d
   격리된 취약점 시뮬레이터          :w3, after w2, 7d
   요청 제한 · 탐지 · 감사 로그      :w4, after w3, 7d
   section P1 AI 보안
@@ -196,7 +200,7 @@ gantt
 | 주차 | 기간 | 목표 | 검증 가능한 산출물 | 상태 |
 | :---: | --- | --- | --- | :---: |
 | 1 | 11/23–11/29 | 환경 구축, DB, 가입·로그인, 소유권 인가 | 기본 API + 인증 테스트 | ✅ |
-| 2 | 11/30–12/06 | 문서 CRUD, 관리자 접근 제어, 오류 응답 | BOLA 테스트, API 문서 | 🟡 |
+| 2 | 11/30–12/06 | 문서 CRUD, 관리자 접근 제어, 오류 응답 | BOLA 테스트, API 문서 | ✅ |
 | 3 | 12/07–12/13 | 격리된 로컬 취약점 시뮬레이터 | 공격 재현 기록, 방어 비교 | ⚪ |
 | 4 | 12/14–12/20 | Redis 요청 제한, 로그인 탐지, 감사 로그 | 429 정책, 보안 이벤트 조회 | ⚪ |
 | 5 | 12/21–12/27 | Mock AI, 소유권 필터링 문서 검색 | 인가된 문서만 AI에 전달 | ⚪ |
@@ -221,7 +225,8 @@ securelab-ai/
 │   │   │   │   ├── user/                      # controller · service · entity · repository · dto
 │   │   │   │   ├── document/                  # controller · service · entity · repository · dto
 │   │   │   │   │   └── service/               # DocumentService, DocumentAccessPolicy (인가 규칙)
-│   │   │   │   ├── securitylab/               # controller · detection · ratelimit · audit
+│   │   │   │   ├── securitylab/               # controller · detection · ratelimit · audit · dto
+│   │   │   │   │   └── audit/                 # SecurityEvent, SecurityEventRecorder (보안 이벤트 기록)
 │   │   │   │   ├── ai/                        # controller · service · model · policy · tools
 │   │   │   │   ├── experiment/                # controller · service · runner
 │   │   │   │   └── global/                    # config · exception · response · web
@@ -230,11 +235,12 @@ securelab-ai/
 │   │   │       ├── application.yml            # 공통 설정 (Actuator health만 노출, 에러 정보 비공개)
 │   │   │       ├── application-local.yml      # local 프로필 (infrastructure/.env 로 DB 접속)
 │   │   │       └── db/migration/
-│   │   │           └── V1__init_schema.sql    # users, documents
+│   │   │           ├── V1__init_schema.sql    # users, documents
+│   │   │           └── V2__security_events.sql # 보안 이벤트
 │   │   └── test/java/com/securelab/
 │   │       ├── auth/                              # 가입, 로그인·로그아웃, 세션 고정, CSRF 재발급
-│   │       ├── document/                          # SEC-01 문서 소유권
-│   │       ├── security/                          # 엔드포인트별 접근 제어 표 (401/403, SEC-02)
+│   │       ├── document/                          # SEC-01 문서 소유권 (읽기·수정·삭제), 목록
+│   │       ├── security/                          # 접근 제어 표 (401/403, SEC-02), 보안 이벤트 기록
 │   │       ├── support/                           # ApiClient: 실제 HTTP + 쿠키 저장소 테스트 클라이언트
 │   │       ├── ActuatorHealthTests.java           # health 공개·세부 정보 비공개, 그 외 엔드포인트 404
 │   │       ├── SchemaMigrationTests.java          # V1 적용, 이메일·역할·공개 범위·FK 제약
