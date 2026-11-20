@@ -6,19 +6,19 @@
 
 ```mermaid
 flowchart TD
-  Client[테스트 클라이언트 / Swagger] --> API[Spring Boot API]
-  API --> Auth[Spring Security / 정책 계층]
-  Auth --> Users[사용자·문서 도메인]
-  Auth --> RL[요청 제한 / 탐지]
-  Auth --> AIP[AI 정책 게이트]
-  Users --> PG[(PostgreSQL)]
-  RL --> REDIS[(Redis)]
+  Client["테스트 클라이언트<br/>Swagger"] --> API["Spring Boot API"]
+  Lab["격리된 취약점 실험<br/>(로컬 전용)"] -.-> API
+  API --> Sec["Spring Security<br/>정책 계층"]
+  Sec --> Domain["사용자·문서<br/>도메인"]
+  Sec --> RL["요청 제한<br/>탐지"]
+  Sec --> Gate["AI 정책 게이트"]
+  Gate --> LLM["Mock LLM<br/>/ Ollama"]
+  Gate --> Search["권한 필터링<br/>문서 검색"]
+  RL --> Redis[("Redis")]
+  Domain --> PG[("PostgreSQL")]
   RL --> PG
-  AIP --> AI[Mock LLM 또는 Ollama]
-  AIP --> DOC[권한 필터링 문서 검색]
-  DOC --> PG
-  AIP --> PG
-  Test[격리된 취약점 테스트 컨테이너] -. 로컬에서만 .-> API
+  Search --> PG
+  Gate --> PG
 ```
 
 - **모듈형 모놀리스:** 하나의 Spring Boot 앱 안에서 패키지로 모듈을 나눈다. MSA는 비목표다.
