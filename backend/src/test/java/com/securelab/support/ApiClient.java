@@ -61,6 +61,40 @@ public final class ApiClient {
 		return send("GET", path, null, false, Map.of(headerName, headerValue));
 	}
 
+	/**
+	 * 지정한 CSRF 토큰으로 보낸다 (재발급 전 토큰이 거부되는지 확인용).
+	 */
+	public ApiResponse postWithCsrfToken(String path, String json, String csrfToken) {
+		return send("POST", path, json, false, Map.of("X-XSRF-TOKEN", csrfToken));
+	}
+
+	/**
+	 * 쿠키를 직접 심는다 (탈취·고정된 세션 ID 재사용 시나리오용).
+	 */
+	public void setCookie(String name, String value) {
+		HttpCookie cookie = new HttpCookie(name, value);
+		cookie.setPath("/");
+		cookie.setVersion(0);
+		this.cookies.getCookieStore().add(this.baseUri, cookie);
+	}
+
+	public ApiResponse login(String email, String password) {
+		return post("/api/v1/auth/login", "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}");
+	}
+
+	public ApiResponse signupAndLogin(String email, String password) {
+		ApiResponse signup = post("/api/v1/auth/signup",
+				"{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}");
+		if (signup.status() != 201) {
+			throw new IllegalStateException("가입 실패: " + signup);
+		}
+		ApiResponse login = login(email, password);
+		if (login.status() != 200) {
+			throw new IllegalStateException("로그인 실패: " + login);
+		}
+		return login;
+	}
+
 	public ApiResponse send(String method, String path, String json, boolean withCsrf) {
 		return send(method, path, json, withCsrf, Map.of());
 	}

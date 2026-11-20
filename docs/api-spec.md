@@ -8,7 +8,7 @@
 | --- | --- |
 | 기본 경로 | `/api/v1` |
 | 인증 | 세션 쿠키 (HttpOnly, SameSite). HTTPS 배포 시 Secure 강제 |
-| CSRF | 상태 변경 요청(POST/PATCH/DELETE)에 CSRF 토큰 필요. 전달 방식은 아래 "미정" 참고 |
+| CSRF | 상태 변경 요청(POST/PATCH/DELETE)에 필요. `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보낸다. 쿠키는 `GET /auth/csrf`나 아무 응답에서 받을 수 있고, 로그인하면 새 값으로 바뀐다 |
 | 요청 추적 | `X-Request-Id` 헤더. 없으면 서버가 발급하고 응답·로그·보안 이벤트에 같은 값을 남김 |
 | 형식 | JSON (UTF-8) |
 
@@ -40,10 +40,15 @@
 | 코드 | 상태 | 설명 |
 | --- | --- | --- |
 | `UNAUTHENTICATED` | 401 | 로그인 필요 |
+| `INVALID_CREDENTIALS` | 401 | 로그인 실패 (계정 없음·비밀번호 틀림을 구분하지 않음) |
 | `ACCESS_DENIED` | 403 | 권한 없음 |
-| `VALIDATION_FAILED` | 400 | 입력 값 오류 |
+| `CSRF_INVALID` | 403 | CSRF 토큰 없음 또는 불일치 |
+| `VALIDATION_FAILED` | 400 | 입력 값 오류 (`errors[]`에 필드별 사유, 거부된 값은 돌려주지 않음) |
+| `MALFORMED_REQUEST` | 400 | JSON 본문을 읽을 수 없음 |
 | `RESOURCE_NOT_FOUND` | 404 | 리소스 없음 |
+| `METHOD_NOT_ALLOWED` | 405 | 지원하지 않는 메서드 |
 | `EMAIL_ALREADY_EXISTS` | 409 | 이메일 중복 |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | 지원하지 않는 콘텐츠 형식 |
 | `RATE_LIMITED` | 429 | 요청 한도 초과 |
 | `LOGIN_TEMPORARILY_BLOCKED` | 429 | 로그인 실패 누적으로 일시 제한 |
 | `INTERNAL_ERROR` | 500 | 서버 오류 |
@@ -54,9 +59,10 @@
 
 | 메서드 | 경로 | 권한 | 설명 |
 | --- | --- | --- | --- |
-| POST | `/auth/signup` | 익명 | 가입, 이메일 중복 검사 |
-| POST | `/auth/login` | 익명 | 로그인, 실패 기록 |
-| POST | `/auth/logout` | 로그인 | 세션 무효화 |
+| GET | `/auth/csrf` | 익명 | CSRF 토큰 쿠키 발급 (204) |
+| POST | `/auth/signup` | 익명 | 가입, 이메일 중복 검사 (201 + `Location`) |
+| POST | `/auth/login` | 익명 | 로그인 — 세션 ID 교체, CSRF 토큰 재발급 |
+| POST | `/auth/logout` | 로그인 | 세션 무효화 (204) |
 | GET | `/users/me` | 로그인 | 내 프로필 |
 | GET | `/users/{id}` | 본인 또는 관리자 | 프로필 접근 제어 확인 |
 
@@ -98,7 +104,7 @@
 
 | 항목 | 내용 | 관련 |
 | --- | --- | --- |
-| CSRF 토큰 전달 | 권장: `CookieCsrfTokenRepository`(`XSRF-TOKEN` 쿠키 → `X-XSRF-TOKEN` 헤더) + `GET /auth/csrf` 추가 | I-4, ADR-0001 |
-| 로그인 요청 형식 | JSON 바디(커스텀 컨트롤러) 또는 Spring Security form login | 11/26 결정 |
+| ~~CSRF 토큰 전달~~ | **결정:** `XSRF-TOKEN` 쿠키 → `X-XSRF-TOKEN` 헤더, `GET /auth/csrf` | I-4, ADR-0001 |
+| ~~로그인 요청 형식~~ | **결정:** JSON 바디 `{"email","password"}` → `LoginService` | ADR-0001 |
 | 타인 문서 응답 코드 | 기획서는 403. 403은 "문서가 존재함"을 알려 주므로 ID 열거에 쓰일 수 있다. 404로 숨길지 검토하되, 바꾸면 SEC-01 기대값도 함께 바꾼다 | SEC-01 |
 | 실험 API 노출 방식 | `lab` 프로필에서만 빈 등록, 기본 프로필에서는 404 | I-6 |

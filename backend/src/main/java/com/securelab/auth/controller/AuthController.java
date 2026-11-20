@@ -2,10 +2,16 @@ package com.securelab.auth.controller;
 
 import java.net.URI;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
+import com.securelab.auth.dto.LoginRequest;
+import com.securelab.auth.dto.LoginResponse;
 import com.securelab.auth.dto.SignupRequest;
+import com.securelab.auth.security.AuthenticatedUser;
 import com.securelab.auth.service.AuthService;
+import com.securelab.auth.service.LoginService;
 import com.securelab.user.dto.UserResponse;
 
 import org.springframework.http.ResponseEntity;
@@ -22,8 +28,11 @@ public class AuthController {
 
 	private final AuthService authService;
 
-	public AuthController(AuthService authService) {
+	private final LoginService loginService;
+
+	public AuthController(AuthService authService, LoginService loginService) {
 		this.authService = authService;
+		this.loginService = loginService;
 	}
 
 	/**
@@ -40,6 +49,17 @@ public class AuthController {
 	public ResponseEntity<UserResponse> signup(@Valid @RequestBody SignupRequest request) {
 		UserResponse user = this.authService.signup(request);
 		return ResponseEntity.created(URI.create("/api/v1/users/" + user.id())).body(user);
+	}
+
+	/**
+	 * 로그인 성공 시 세션 ID가 바뀌고 새 CSRF 토큰 쿠키가 내려간다. 이후 요청은 새 {@code XSRF-TOKEN} 값을 써야 한다.
+	 * 로그아웃은 Spring Security의 LogoutFilter가 {@code POST /api/v1/auth/logout}에서 처리한다 (204).
+	 */
+	@PostMapping("/login")
+	public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest,
+			HttpServletResponse httpResponse) {
+		AuthenticatedUser user = this.loginService.login(request, httpRequest, httpResponse);
+		return new LoginResponse(user.id(), user.email(), user.role());
 	}
 
 }

@@ -57,11 +57,13 @@
 - [x] 통합 테스트는 실제 HTTP(임의 포트) + 쿠키 저장소로 검증 (`ApiClient`). spring-security-test의 `csrf()`는 공유 컨텍스트의 CSRF 저장소를 바꿔 버려 쓰지 않는다
 - **완료 조건:** 가입 API 테스트 성공
 
-### 목 11/26 — 세션 로그인·로그아웃, CSRF
+### 목 11/26 — 세션 로그인·로그아웃, CSRF ✅ (11/20에 먼저 완료)
 
-- [ ] 세션 로그인/로그아웃, HttpOnly·SameSite 쿠키, 로그인 시 세션 ID 교체(세션 고정 방지)
-- [ ] CSRF 토큰 전달 방식 확정 (I-4)
-- [ ] 401/403을 공통 에러 형식으로 응답 (`AuthenticationEntryPoint`, `AccessDeniedHandler`)
+- [x] 세션 로그인/로그아웃, HttpOnly·SameSite 쿠키, 로그인 시 세션 ID 교체(세션 고정 방지)
+- [x] CSRF 토큰 전달 방식 확정 (I-4) — 로그인 시 재발급, 새 토큰은 로그인 응답 쿠키로 바로 전달
+- [x] 401/403을 공통 에러 형식으로 응답 (`AuthenticationEntryPoint`, `AccessDeniedHandler`)
+- [x] `GET /users/me`, `GET /users/{id}`(본인·관리자, 권한 검사를 존재 확인보다 먼저) — 2주차 항목 앞당김
+- [x] 테스트 8건: 세션 고정 방지, 예전 세션 ID 무효, CSRF 재발급·예전 토큰 거부, 계정 열거 방지, 로그아웃 후 세션 재사용 불가
 - **완료 조건:** 세션 유지·종료 테스트
 
 ### 금 11/27 — 문서 엔티티, 소유권 검사

@@ -22,7 +22,8 @@ Spring Security의 서버 세션 인증을 쓴다.
 
 ## 결과
 
-- CSRF 토큰 전달 방식을 정해야 한다. 권장: `CookieCsrfTokenRepository` + `GET /api/v1/auth/csrf` (I-4, 11/26 결정).
-- JSON 로그인 컨트롤러를 직접 만들면 SecurityContext를 세션에 저장하는 처리를 명시해야 한다.
+- **CSRF (I-4, 2026-11-20 결정):** `csrf.spa()` — `XSRF-TOKEN` 쿠키(SameSite=Lax, JS에서 읽을 수 있음) 값을 `X-XSRF-TOKEN` 헤더로 보낸다. `GET /api/v1/auth/csrf`로 미리 받을 수 있다. 가입·로그인에도 적용한다(로그인 CSRF 방지).
+- **JSON 로그인:** `LoginService`가 인증 → 세션 ID 교체(`ChangeSessionIdAuthenticationStrategy`) → CSRF 토큰 재발급 → SecurityContext 세션 저장을 명시적으로 한다. 새 CSRF 토큰은 로그인 응답 쿠키로 바로 내려간다.
+- 로그인 실패는 계정 없음·비밀번호 틀림·비활성 계정을 구분하지 않고 `401 INVALID_CREDENTIALS`로 응답한다.
 - k6와 통합 테스트는 쿠키와 CSRF 토큰을 유지하도록 작성해야 한다.
 - 여러 인스턴스로 늘리려면 세션 저장소(예: Redis)가 필요하지만 이번 범위는 아니다.

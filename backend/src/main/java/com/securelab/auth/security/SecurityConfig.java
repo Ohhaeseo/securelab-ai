@@ -1,12 +1,33 @@
 package com.securelab.auth.security;
 
+import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
+import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+import org.springframework.security.web.context.DelegatingSecurityContextRepository;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfAuthenticationStrategy;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRequestHandler;
+import org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -28,6 +49,7 @@ public class SecurityConfig {
 
 	@Bean
 	SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, CsrfTokenRepository csrfTokenRepository,
+			SecurityContextRepository securityContextRepository,
 			JsonAuthenticationEntryPoint authenticationEntryPoint, JsonAccessDeniedHandler accessDeniedHandler)
 			throws Exception {
 		http.authorizeHttpRequests((authorize) -> authorize
@@ -35,12 +57,18 @@ public class SecurityConfig {
 			.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 			.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 			.requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf").permitAll()
-			.requestMatchers(HttpMethod.POST, "/api/v1/auth/signup").permitAll()
+			.requestMatchers(HttpMethod.POST, "/api/v1/auth/signup", "/api/v1/auth/login").permitAll()
 			.requestMatchers("/api/v1/security/**").hasRole("ADMIN")
 			.anyRequest().authenticated());
 
 		// XSRF-TOKEN 쿠키 값을 X-XSRF-TOKEN 헤더로 보내는 방식. 가입·로그인에도 적용한다(로그인 CSRF 방지).
 		http.csrf((csrf) -> csrf.spa().csrfTokenRepository(csrfTokenRepository));
+
+		http.securityContext((context) -> context.securityContextRepository(securityContextRepository));
+
+		http.logout((logout) -> logout.logoutUrl("/api/v1/auth/logout")
+			.logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
+			.deleteCookies("JSESSIONID"));
 
 		http.exceptionHandling((exceptions) -> exceptions.authenticationEntryPoint(authenticationEntryPoint)
 			.accessDeniedHandler(accessDeniedHandler));
@@ -50,6 +78,47 @@ public class SecurityConfig {
 		http.httpBasic(AbstractHttpConfigurer::disable);
 		http.formLogin(AbstractHttpConfigurer::disable);
 		return http.build();
+	}
+
+	@Bean
+	AuthenticationManager authenticationManager(UserDetailsService userDetailsService,
+			PasswordEncoder passwordEncoder) {
+		DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+		provider.setPasswordEncoder(passwordEncoder);
+		return new ProviderManager(provider);
+	}
+
+	@Bean
+	SecurityContextRepository securityContextRepository() {
+		return new DelegatingSecurityContextRepository(new RequestAttributeSecurityContextRepository(),
+				new HttpSessionSecurityContextRepository());
+	}
+
+	/**
+	 * 로그인 직후: 세션 ID 교체(세션 고정 방지) → CSRF 토큰 재발급. 새 토큰은 로그인 응답의 쿠키로 바로 내려간다.
+	 */
+	@Bean
+	SessionAuthenticationStrategy sessionAuthenticationStrategy(CsrfTokenRepository csrfTokenRepository) {
+		CsrfAuthenticationStrategy csrfStrategy = new CsrfAuthenticationStrategy(csrfTokenRepository);
+		csrfStrategy.setRequestHandler(new EagerCsrfTokenRequestHandler());
+		return new CompositeSessionAuthenticationStrategy(
+				List.of(new ChangeSessionIdAuthenticationStrategy(), csrfStrategy));
+	}
+
+	/**
+	 * 기본 처리기는 새 토큰을 지연 생성해 로그인 응답에 쿠키가 실리지 않는다. 토큰을 바로 꺼내 쿠키로 내려보낸다.
+	 */
+	static final class EagerCsrfTokenRequestHandler implements CsrfTokenRequestHandler {
+
+		private final XorCsrfTokenRequestAttributeHandler delegate = new XorCsrfTokenRequestAttributeHandler();
+
+		@Override
+		public void handle(HttpServletRequest request, HttpServletResponse response,
+				Supplier<CsrfToken> csrfToken) {
+			this.delegate.handle(request, response, csrfToken);
+			csrfToken.get();
+		}
+
 	}
 
 	@Bean
