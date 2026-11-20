@@ -12,7 +12,7 @@
 | 형태 | 독립 GitHub 저장소 `securelab-ai`, Spring Boot 모듈형 모놀리스 |
 | 기간 | 8주 (2026-11-23 ~ 2027-01-17) |
 | 비용 | 로컬 개발 0원 목표 (Docker·Ollama 모두 로컬 실행) |
-| 환경 | Windows + WSL2 + Docker Compose, RAM 32GB 이상, GPU 미확인 |
+| 환경 | Windows + WSL2 + Docker Compose, RAM 32GB, CPU Intel Core Ultra 7 258V, GPU 내장 Intel Arc 140V (2026-11-20 확인 — CUDA 없음, 6주차 Ollama는 CPU 우선 평가) |
 
 ## 2. 설계 원칙
 

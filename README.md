@@ -17,8 +17,8 @@
 ![Redis](https://img.shields.io/badge/Redis-planned-DC382D?logo=redis&logoColor=white)
 ![Ollama](https://img.shields.io/badge/Ollama-planned-000000?logo=ollama&logoColor=white)
 
-![status](https://img.shields.io/badge/status-week_2_done-blue)
-![tests](https://img.shields.io/badge/tests-63_passing-brightgreen)
+![status](https://img.shields.io/badge/status-week_3_done-blue)
+![tests](https://img.shields.io/badge/tests-82_passing-brightgreen)
 
 [기획 정리](docs/planning/plan-summary.md) · [로드맵](docs/planning/roadmap.md) · [아키텍처](docs/architecture.md) · [위협 모델](docs/threat-model.md) · [API 명세](docs/api-spec.md) · [실험 결과](docs/experiment-results.md)
 
@@ -165,7 +165,8 @@ AI 도구 실행 흐름과 신뢰 경계 표는 [docs/architecture.md](docs/arch
 | 오류 응답 | 공통 JSON 형식 + `requestId`, 스택 트레이스·입력 값 비노출 |
 | 감사 | 접근 거부·역할 위반·CSRF 거부를 `security_events`에 기록 (requestId, IP, 대상, 판정 코드 — 본문은 저장 안 함) |
 | 운영 | Actuator `health`만 노출, Swagger는 `local` 프로필에서만 |
-| 테스트 | 실제 HTTP + Testcontainers PostgreSQL 통합 테스트 63건 (SEC-01 읽기·쓰기, SEC-02) |
+| 실험 격리 | 취약 대조군 `vulnerable-api`(인가만 제거, 루프백 전용), 실험 API는 `lab` 프로필 + ADMIN |
+| 테스트 | backend 69건 (실제 HTTP + Testcontainers PostgreSQL) + vulnerable-api 13건 (결함 재현 회귀) |
 
 | API | 권한 |
 | --- | --- |
@@ -176,6 +177,19 @@ AI 도구 실행 흐름과 신뢰 경계 표는 [docs/architecture.md](docs/arch
 | `GET /api/v1/documents/{id}` | 소유자 또는 공개 문서 |
 | `PATCH /api/v1/documents/{id}` · `DELETE /api/v1/documents/{id}` | 소유자만 (관리자도 불가) |
 | `GET /api/v1/security/events` · `GET /api/v1/security/metrics` | 관리자 |
+| `GET /api/v1/scenarios` | 관리자 + `lab` 프로필 |
+
+### 📈 실측 결과 (SEC-01·SEC-02, 대상별 30회)
+
+| 시나리오 | 취약 대조군 ASR | 보호 버전 ASR | 보호 버전 오탐률 |
+| --- | ---: | ---: | ---: |
+| SEC-01 남의 비공개 문서 조회 | 100% | **0%** (403) | 0% |
+| SEC-01 목록에서 남의 비공개 문서 노출 | 100% | **0%** | 0% |
+| SEC-01 남의 문서 수정 | 100% | **0%** (403) | — |
+| SEC-01 남의 문서 삭제 | 100% | **0%** (403) | — |
+| SEC-02 일반 사용자의 관리 API 호출 | 100% | **0%** (403) | — |
+
+침해는 응답 코드가 아니라 결과(본문 노출, 변경·삭제 반영 등)로 판정했습니다. 측정 환경·지연·한계는 [실험 결과](docs/experiment-results.md)에 있습니다.
 
 ## 🗓 로드맵
 
@@ -187,7 +201,7 @@ gantt
   section P0 API 보안
   환경 구축 · 인증 · 소유권 인가   :done, w1, 2026-11-23, 7d
   문서 CRUD · 관리자 접근 제어     :done, w2, after w1, 7d
-  격리된 취약점 시뮬레이터          :w3, after w2, 7d
+  격리된 취약점 시뮬레이터          :done, w3, after w2, 7d
   요청 제한 · 탐지 · 감사 로그      :w4, after w3, 7d
   section P1 AI 보안
   Mock AI · 권한 필터링 검색       :w5, after w4, 7d
@@ -201,7 +215,7 @@ gantt
 | :---: | --- | --- | --- | :---: |
 | 1 | 11/23–11/29 | 환경 구축, DB, 가입·로그인, 소유권 인가 | 기본 API + 인증 테스트 | ✅ |
 | 2 | 11/30–12/06 | 문서 CRUD, 관리자 접근 제어, 오류 응답 | BOLA 테스트, API 문서 | ✅ |
-| 3 | 12/07–12/13 | 격리된 로컬 취약점 시뮬레이터 | 공격 재현 기록, 방어 비교 | ⚪ |
+| 3 | 12/07–12/13 | 격리된 로컬 취약점 시뮬레이터 | 공격 재현 기록, 방어 비교 | ✅ |
 | 4 | 12/14–12/20 | Redis 요청 제한, 로그인 탐지, 감사 로그 | 429 정책, 보안 이벤트 조회 | ⚪ |
 | 5 | 12/21–12/27 | Mock AI, 소유권 필터링 문서 검색 | 인가된 문서만 AI에 전달 | ⚪ |
 | 6 | 12/28–01/03 | Ollama 연동, Prompt Injection 벤치마크 | 시나리오별 ASR 기록 | ⚪ |
@@ -236,7 +250,8 @@ securelab-ai/
 │   │   │       ├── application-local.yml      # local 프로필 (infrastructure/.env 로 DB 접속)
 │   │   │       └── db/migration/
 │   │   │           ├── V1__init_schema.sql    # users, documents
-│   │   │           └── V2__security_events.sql # 보안 이벤트
+│   │   │           ├── V2__security_events.sql # 보안 이벤트
+│   │   │           └── V3__attack_scenarios.sql # 공격 시나리오 카탈로그 (합성 페이로드)
 │   │   └── test/java/com/securelab/
 │   │       ├── auth/                              # 가입, 로그인·로그아웃, 세션 고정, CSRF 재발급
 │   │       ├── document/                          # SEC-01 문서 소유권 (읽기·수정·삭제), 목록
@@ -256,7 +271,11 @@ securelab-ai/
 │   ├── .env.example                           # DB_PASSWORD, DB_PORT
 │   └── monitoring/                            # (예정)
 ├── experiments/
-│   ├── api-security/                          # SEC-01~04, 격리된 취약 앱 (3주차)
+│   ├── api-security/                          # SEC-01~04
+│   │   ├── vulnerable-api/                    # ⚠️ 인가 검사를 뺀 대조군 앱 (127.0.0.1:18080, 루프백 전용)
+│   │   ├── runner/ScenarioRunner.java         # 같은 공격을 두 대상에 실행 (JDK만 사용, 루프백 대상만 허용)
+│   │   ├── run-sec-experiment.ps1             # 두 앱 기동 → 러너 실행 → 종료
+│   │   └── results/                           # 실측 요약 (raw/ 는 Git 제외)
 │   ├── prompt-injection/                      # AI-01~04, 합성 페이로드
 │   └── load-tests/                            # k6 스크립트 (8주차)
 ├── docs/

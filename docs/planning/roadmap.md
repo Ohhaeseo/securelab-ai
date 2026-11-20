@@ -99,11 +99,12 @@
 - [x] SEC-01 쓰기(남의 문서 수정·삭제 403, 내용 불변), 관리자도 남의 비공개 문서 접근 불가, 이벤트 requestId 추적 테스트 — 전체 63건
 - [ ] 관리자 API의 "개별 작업 권한" 확인 (체크리스트 항목) — 관리 작업이 조회뿐이라 보류, 쓰기 작업이 생기면 추가
 
-### 3주 — 격리된 취약점 시뮬레이터
-- ADR-0002 확정 (I-1), `lab` 프로필 정책 확정 (I-6)
-- `vulnerable-api` 작성(소유권 검사가 빠진 버전)
-- 같은 시나리오를 취약·보호 대상에 각각 실행하는 테스트
-- `attack_scenarios` 시드(합성 페이로드만), 재현 기록
+### 3주 — 격리된 취약점 시뮬레이터 ✅ (11/20에 먼저 완료)
+- [x] ADR-0002 확정 (I-1), `lab` 프로필 정책 확정 (I-6) — `GET /api/v1/scenarios`는 `lab` 프로필 + ADMIN
+- [x] `vulnerable-api`: 인증은 보호 버전과 같고 인가만 뺀 대조군, 메모리 저장소, 루프백 전용 가드, 결함 재현 회귀 테스트 13건
+- [x] 같은 시나리오를 취약·보호 대상에 각각 실행: `runner/ScenarioRunner.java` + `run-sec-experiment.ps1`
+- [x] `attack_scenarios` 시드(V3, 합성 페이로드만), 재현 기록 → [experiment-results.md](../experiment-results.md)
+  - 실측(30회): SEC-01 읽기·목록·수정·삭제, SEC-02 모두 취약 ASR 100% → 보호 0%, 오탐 0%
 
 ### 4주 — 요청 제한, 탐지, 감사
 - Redis를 Compose에 추가, 요청 제한(429 + `Retry-After`)
