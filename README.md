@@ -14,11 +14,11 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-9.9.2-02303A?logo=gradle&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker_Compose-2496ED?logo=docker&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-planned-DC382D?logo=redis&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-7.4-DC382D?logo=redis&logoColor=white)
 ![Ollama](https://img.shields.io/badge/Ollama-planned-000000?logo=ollama&logoColor=white)
 
-![status](https://img.shields.io/badge/status-week_3_done-blue)
-![tests](https://img.shields.io/badge/tests-82_passing-brightgreen)
+![status](https://img.shields.io/badge/status-week_4_done-blue)
+![tests](https://img.shields.io/badge/tests-101_passing-brightgreen)
 
 [기획 정리](docs/planning/plan-summary.md) · [로드맵](docs/planning/roadmap.md) · [아키텍처](docs/architecture.md) · [위협 모델](docs/threat-model.md) · [API 명세](docs/api-spec.md) · [실험 결과](docs/experiment-results.md)
 
@@ -75,7 +75,7 @@
 | API 문서 | springdoc-openapi | 3.2.0 | ✅ | Swagger UI |
 | 운영 | Spring Boot Actuator | Boot 관리 | ✅ | 헬스 체크 |
 | 테스트 | JUnit · Spring Boot Test · Testcontainers | 6.0 · — · 2.0 | ✅ | 실제 PostgreSQL로 인증·인가 통합 테스트 |
-| 요청 제한 | Redis | — | 4주차 | 기간별 요청 횟수, 잠금 상태 |
+| 요청 제한 | Redis (Lettuce) | 7.4 | ✅ | 기간별 요청 횟수, 로그인 실패 카운터 (TTL) |
 | AI | Mock LLM → Ollama + Spring AI | — | 5~6주차 | GPU 없이 정책부터 검증하고, 이후 1~3B급 로컬 모델 평가 |
 | CI | GitHub Actions | — | 7주차 | 통합 테스트 자동화 |
 | 부하 테스트 | k6 | — | 8주차 | 요청 제한·지연·오탐 측정 |
@@ -163,10 +163,12 @@ AI 도구 실행 흐름과 신뢰 경계 표는 [docs/architecture.md](docs/arch
 | 인가 | 문서 소유권 검사(`DocumentAccessPolicy`), 프로필은 본인·관리자만, 관리 API는 ADMIN |
 | 계정 열거 방지 | 로그인 실패 응답 통일, 남의 프로필 조회는 존재 여부와 관계없이 403 |
 | 오류 응답 | 공통 JSON 형식 + `requestId`, 스택 트레이스·입력 값 비노출 |
-| 감사 | 접근 거부·역할 위반·CSRF 거부를 `security_events`에 기록 (requestId, IP, 대상, 판정 코드 — 본문은 저장 안 함) |
+| 요청 제한 | `/api/**` 로그인 사용자 ID별 120회/분, 익명 IP별 60회/분 — Redis 고정 윈도우, 429 + `Retry-After` (SEC-04) |
+| 로그인 보호 | (계정+IP) 5회, IP 20회 실패 / 15분 → 차단, 차단 중에는 비밀번호 검증 생략 (SEC-03). Redis 장애 시 DB로 대신 집계 |
+| 감사 | 접근 거부·역할 위반·CSRF 거부·요청 제한·로그인 차단을 `security_events`에 기록, 로그인 시도는 `login_attempts`에 HMAC 다이제스트로 기록, 30일 보존 |
 | 운영 | Actuator `health`만 노출, Swagger는 `local` 프로필에서만 |
 | 실험 격리 | 취약 대조군 `vulnerable-api`(인가만 제거, 루프백 전용), 실험 API는 `lab` 프로필 + ADMIN |
-| 테스트 | backend 69건 (실제 HTTP + Testcontainers PostgreSQL) + vulnerable-api 13건 (결함 재현 회귀) |
+| 테스트 | backend 88건 (실제 HTTP + Testcontainers PostgreSQL·Redis) + vulnerable-api 13건 (결함 재현 회귀) |
 
 | API | 권한 |
 | --- | --- |
@@ -179,7 +181,7 @@ AI 도구 실행 흐름과 신뢰 경계 표는 [docs/architecture.md](docs/arch
 | `GET /api/v1/security/events` · `GET /api/v1/security/metrics` | 관리자 |
 | `GET /api/v1/scenarios` | 관리자 + `lab` 프로필 |
 
-### 📈 실측 결과 (SEC-01·SEC-02, 대상별 30회)
+### 📈 실측 결과 (SEC-01~04)
 
 | 시나리오 | 취약 대조군 ASR | 보호 버전 ASR | 보호 버전 오탐률 |
 | --- | ---: | ---: | ---: |
@@ -188,6 +190,12 @@ AI 도구 실행 흐름과 신뢰 경계 표는 [docs/architecture.md](docs/arch
 | SEC-01 남의 문서 수정 | 100% | **0%** (403) | — |
 | SEC-01 남의 문서 삭제 | 100% | **0%** (403) | — |
 | SEC-02 일반 사용자의 관리 API 호출 | 100% | **0%** (403) | — |
+
+| 남용 시나리오 | 취약 대조군 | 보호 버전 |
+| --- | --- | --- |
+| SEC-03 한 계정 비밀번호 반복 대입 | 30회 실패 후 맞는 비밀번호로 **로그인 성공** | 5회 실패 후 차단 (맞는 비밀번호도 429), 같은 IP 다른 계정은 정상 |
+| SEC-03 여러 계정 순회(스터핑) | 차단 없음 | IP 누적 실패 20회에서 차단 |
+| SEC-04 150회 연속 호출 | 150회 모두 허용 | 121번째부터 429, 다른 사용자 영향 없음 |
 
 침해는 응답 코드가 아니라 결과(본문 노출, 변경·삭제 반영 등)로 판정했습니다. 측정 환경·지연·한계는 [실험 결과](docs/experiment-results.md)에 있습니다.
 
@@ -202,7 +210,7 @@ gantt
   환경 구축 · 인증 · 소유권 인가   :done, w1, 2026-11-23, 7d
   문서 CRUD · 관리자 접근 제어     :done, w2, after w1, 7d
   격리된 취약점 시뮬레이터          :done, w3, after w2, 7d
-  요청 제한 · 탐지 · 감사 로그      :w4, after w3, 7d
+  요청 제한 · 탐지 · 감사 로그      :done, w4, after w3, 7d
   section P1 AI 보안
   Mock AI · 권한 필터링 검색       :w5, after w4, 7d
   Ollama · Prompt Injection 벤치마크 :w6, after w5, 7d
@@ -216,7 +224,7 @@ gantt
 | 1 | 11/23–11/29 | 환경 구축, DB, 가입·로그인, 소유권 인가 | 기본 API + 인증 테스트 | ✅ |
 | 2 | 11/30–12/06 | 문서 CRUD, 관리자 접근 제어, 오류 응답 | BOLA 테스트, API 문서 | ✅ |
 | 3 | 12/07–12/13 | 격리된 로컬 취약점 시뮬레이터 | 공격 재현 기록, 방어 비교 | ✅ |
-| 4 | 12/14–12/20 | Redis 요청 제한, 로그인 탐지, 감사 로그 | 429 정책, 보안 이벤트 조회 | ⚪ |
+| 4 | 12/14–12/20 | Redis 요청 제한, 로그인 탐지, 감사 로그 | 429 정책, 보안 이벤트 조회 | ✅ |
 | 5 | 12/21–12/27 | Mock AI, 소유권 필터링 문서 검색 | 인가된 문서만 AI에 전달 | ⚪ |
 | 6 | 12/28–01/03 | Ollama 연동, Prompt Injection 벤치마크 | 시나리오별 ASR 기록 | ⚪ |
 | 7 | 01/04–01/10 | 도구 실행 정책, 테스트·CI, 로그 | 무단 도구 실행 0건 검증 | ⚪ |
@@ -240,7 +248,9 @@ securelab-ai/
 │   │   │   │   ├── document/                  # controller · service · entity · repository · dto
 │   │   │   │   │   └── service/               # DocumentService, DocumentAccessPolicy (인가 규칙)
 │   │   │   │   ├── securitylab/               # controller · detection · ratelimit · audit · dto
-│   │   │   │   │   └── audit/                 # SecurityEvent, SecurityEventRecorder (보안 이벤트 기록)
+│   │   │   │   │   ├── ratelimit/             # Redis 고정 윈도우 카운터, API 요청 제한 필터 (SEC-04)
+│   │   │   │   │   ├── detection/             # 로그인 보호, HMAC 이메일 다이제스트, login_attempts (SEC-03)
+│   │   │   │   │   └── audit/                 # 보안 이벤트 기록·조회, 보존 기간 정리 작업
 │   │   │   │   ├── ai/                        # controller · service · model · policy · tools
 │   │   │   │   ├── experiment/                # controller · service · runner
 │   │   │   │   └── global/                    # config · exception · response · web
@@ -251,11 +261,13 @@ securelab-ai/
 │   │   │       └── db/migration/
 │   │   │           ├── V1__init_schema.sql    # users, documents
 │   │   │           ├── V2__security_events.sql # 보안 이벤트
-│   │   │           └── V3__attack_scenarios.sql # 공격 시나리오 카탈로그 (합성 페이로드)
+│   │   │           ├── V3__attack_scenarios.sql # 공격 시나리오 카탈로그 (합성 페이로드)
+│   │   │           └── V4__login_attempts.sql # 로그인 시도 기록
 │   │   └── test/java/com/securelab/
 │   │       ├── auth/                              # 가입, 로그인·로그아웃, 세션 고정, CSRF 재발급
 │   │       ├── document/                          # SEC-01 문서 소유권 (읽기·수정·삭제), 목록
 │   │       ├── security/                          # 접근 제어 표 (401/403, SEC-02), 보안 이벤트 기록
+│   │       ├── securitylab/                       # 요청 제한(SEC-04), 로그인 보호(SEC-03), Redis 장애 정책, 보존 정리
 │   │       ├── support/                           # ApiClient: 실제 HTTP + 쿠키 저장소 테스트 클라이언트
 │   │       ├── ActuatorHealthTests.java           # health 공개·세부 정보 비공개, 그 외 엔드포인트 404
 │   │       ├── SchemaMigrationTests.java          # V1 적용, 이메일·역할·공개 범위·FK 제약
@@ -267,8 +279,8 @@ securelab-ai/
 │   ├── settings.gradle
 │   └── gradlew, gradlew.bat
 ├── infrastructure/
-│   ├── compose.yml                            # PostgreSQL 17 (Redis는 4주차)
-│   ├── .env.example                           # DB_PASSWORD, DB_PORT
+│   ├── compose.yml                            # PostgreSQL 17, Redis 7.4 (비밀번호 필수)
+│   ├── .env.example                           # DB_PASSWORD, DB_PORT, REDIS_PASSWORD, LOGIN_DIGEST_SECRET
 │   └── monitoring/                            # (예정)
 ├── experiments/
 │   ├── api-security/                          # SEC-01~04

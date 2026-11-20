@@ -62,6 +62,8 @@ public class ScenarioRunner {
 		}
 
 		List<Measurement> measurements = new ArrayList<>();
+		List<Sec04Result> floods = new ArrayList<>();
+		List<Sec03Result> bruteForces = new ArrayList<>();
 		for (Map.Entry<String, URI> target : targets.entrySet()) {
 			System.out.printf("[%s] %s — 워밍업 %d회, 측정 %d회%n", target.getKey(), target.getValue(), warmup, trials);
 			for (int trial = 1; trial <= warmup + trials; trial++) {
@@ -70,6 +72,10 @@ public class ScenarioRunner {
 					measurements.addAll(result);
 				}
 			}
+			System.out.printf("[%s] SEC-04 요청 폭주, SEC-03 반복 실패 측정%n", target.getKey());
+			floods.add(runSec04(target.getKey(), target.getValue()));
+			// SEC-03은 IP 단위 차단을 일으키므로 대상별로 마지막에 실행한다.
+			bruteForces.add(runSec03(target.getKey(), target.getValue()));
 		}
 
 		String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
@@ -77,7 +83,9 @@ public class ScenarioRunner {
 		Path raw = out.resolve("raw").resolve("sec-api-" + stamp + ".jsonl");
 		Files.write(raw, measurements.stream().map(Measurement::toJson).toList(), StandardCharsets.UTF_8);
 		Path summary = out.resolve("sec-api-" + stamp + ".md");
-		Files.writeString(summary, summarize(targets, trials, warmup, measurements, stamp), StandardCharsets.UTF_8);
+		Files.writeString(summary,
+				summarize(targets, trials, warmup, measurements, stamp) + summarizeAbuse(floods, bruteForces),
+				StandardCharsets.UTF_8);
 		System.out.println("요약: " + summary);
 		System.out.println("원본: " + raw);
 	}
@@ -127,6 +135,121 @@ public class ScenarioRunner {
 		boolean deleted = alice.timed("GET", "/api/v1/documents/" + privateId, null).status() == 404;
 		results.add(Measurement.attack(target, trial, "SEC-01-DELETE", delete, deleted));
 		return results;
+	}
+
+	/**
+	 * SEC-04: 로그인 사용자 1명이 같은 API를 150회 연속 호출한다. 다른 사용자는 영향을 받지 않아야 한다(오탐).
+	 */
+	static Sec04Result runSec04(String target, URI base) {
+		Session flooder = new Session(base);
+		Session bystander = new Session(base);
+		flooder.signupAndLogin("runner-flood-" + UUID.randomUUID() + "@securelab.test");
+		bystander.signupAndLogin("runner-bystander-" + UUID.randomUUID() + "@securelab.test");
+		int total = 150;
+		int allowed = 0;
+		int limited = 0;
+		int firstLimitedAt = -1;
+		List<Double> allowedLatency = new ArrayList<>();
+		List<Double> limitedLatency = new ArrayList<>();
+		for (int i = 1; i <= total; i++) {
+			Timed response = flooder.timed("GET", "/api/v1/users/me", null);
+			if (response.status() == 429) {
+				limited++;
+				limitedLatency.add(response.latencyMs());
+				if (firstLimitedAt < 0) {
+					firstLimitedAt = i;
+				}
+			}
+			else if (response.status() == 200) {
+				allowed++;
+				allowedLatency.add(response.latencyMs());
+			}
+		}
+		int bystanderStatus = bystander.timed("GET", "/api/v1/users/me", null).status();
+		return new Sec04Result(target, total, allowed, limited, firstLimitedAt, median(allowedLatency),
+				median(limitedLatency), bystanderStatus);
+	}
+
+	/**
+	 * SEC-03: (1) 한 계정에 틀린 비밀번호를 반복 (2) 차단 후 맞는 비밀번호 (3) 같은 IP의 다른 계정 정상 로그인(오탐) (4) 여러 계정을 도는 크리덴셜
+	 * 스터핑.
+	 */
+	static Sec03Result runSec03(String target, URI base) {
+		String wrong = "wrong-password-123";
+		String victim = "runner-victim-" + UUID.randomUUID() + "@securelab.test";
+		new Session(base).signup(victim);
+		Session attacker = new Session(base);
+
+		int maxAttempts = 30;
+		int blockedAt = -1;
+		long start = System.nanoTime();
+		double msUntilBlock = Double.NaN;
+		for (int i = 1; i <= maxAttempts; i++) {
+			if (attacker.timed("POST", "/api/v1/auth/login", credentials(victim, wrong)).status() == 429) {
+				blockedAt = i;
+				msUntilBlock = (System.nanoTime() - start) / 1_000_000.0;
+				break;
+			}
+		}
+		int correctPasswordStatus = attacker.timed("POST", "/api/v1/auth/login", credentials(victim, PASSWORD))
+			.status();
+
+		String bystander = "runner-sameip-" + UUID.randomUUID() + "@securelab.test";
+		Session bystanderSession = new Session(base);
+		bystanderSession.signup(bystander);
+		int bystanderStatus = bystanderSession.timed("POST", "/api/v1/auth/login", credentials(bystander, PASSWORD))
+			.status();
+
+		int stuffingBlockedAt = -1;
+		for (int i = 1; i <= 40; i++) {
+			String guess = "runner-stuffed-" + UUID.randomUUID() + "@securelab.test";
+			if (attacker.timed("POST", "/api/v1/auth/login", credentials(guess, wrong)).status() == 429) {
+				stuffingBlockedAt = i;
+				break;
+			}
+		}
+		return new Sec03Result(target, maxAttempts, blockedAt, msUntilBlock, correctPasswordStatus, bystanderStatus,
+				stuffingBlockedAt);
+	}
+
+	static String credentials(String email, String password) {
+		return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}";
+	}
+
+	static double median(List<Double> values) {
+		return percentile(values.stream().sorted().toList(), 50);
+	}
+
+	static String summarizeAbuse(List<Sec04Result> floods, List<Sec03Result> bruteForces) {
+		StringBuilder md = new StringBuilder("\n## SEC-04 과도한 호출 (로그인 사용자 1명, 150회 연속)\n\n");
+		md.append("| 대상 | 요청 | 허용(200) | 차단(429) | 첫 429 순번 | 허용 p50 ms | 429 p50 ms | 다른 사용자 영향 |\n");
+		md.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n");
+		for (Sec04Result r : floods) {
+			md.append(String.format(Locale.ROOT, "| %s | %d | %d | %d | %s | %.1f | %s | %s |%n", r.target(), r.total(),
+					r.allowed(), r.limited(), (r.firstLimitedAt() < 0) ? "차단 없음" : String.valueOf(r.firstLimitedAt()),
+					r.allowedP50(), Double.isNaN(r.limitedP50()) ? "—" : String.format(Locale.ROOT, "%.1f", r.limitedP50()),
+					(r.bystanderStatus() == 200) ? "없음 (200)" : "있음 (" + r.bystanderStatus() + ")"));
+		}
+		md.append("\n## SEC-03 로그인 반복 실패\n\n");
+		md.append("| 대상 | 한 계정 반복 실패: 차단된 시도 순번 | 차단까지 시간 ms | 차단 후 맞는 비밀번호 | 같은 IP 다른 계정 로그인 (오탐) | 스터핑: 차단된 시도 순번 |\n");
+		md.append("| --- | ---: | ---: | --- | --- | ---: |\n");
+		for (Sec03Result r : bruteForces) {
+			md.append(String.format(Locale.ROOT, "| %s | %s | %s | %d | %s | %s |%n", r.target(),
+					(r.blockedAt() < 0) ? "차단 없음 (" + r.maxAttempts() + "회 모두 401)" : String.valueOf(r.blockedAt()),
+					Double.isNaN(r.msUntilBlock()) ? "—" : String.format(Locale.ROOT, "%.0f", r.msUntilBlock()),
+					r.correctPasswordStatus(), (r.bystanderStatus() == 200) ? "성공 (200, 오탐 없음)" : "막힘 (" + r.bystanderStatus() + ")",
+					(r.stuffingBlockedAt() < 0) ? "차단 없음 (40회)" : String.valueOf(r.stuffingBlockedAt())));
+		}
+		md.append("\n> SEC-03 스터핑 순번은 앞선 반복 실패(같은 IP)가 IP 카운터에 이미 쌓인 뒤의 값이다.\n");
+		return md.toString();
+	}
+
+	record Sec04Result(String target, int total, int allowed, int limited, int firstLimitedAt, double allowedP50,
+			double limitedP50, int bystanderStatus) {
+	}
+
+	record Sec03Result(String target, int maxAttempts, int blockedAt, double msUntilBlock, int correctPasswordStatus,
+			int bystanderStatus, int stuffingBlockedAt) {
 	}
 
 	static URI requireLoopback(URI uri) {
@@ -244,9 +367,12 @@ public class ScenarioRunner {
 		}
 
 		void signupAndLogin(String email) {
-			String body = "{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD + "\"}";
-			expect(timed("POST", "/api/v1/auth/signup", body), 201, "가입");
-			expect(timed("POST", "/api/v1/auth/login", body), 200, "로그인");
+			signup(email);
+			expect(timed("POST", "/api/v1/auth/login", credentials(email, PASSWORD)), 200, "로그인");
+		}
+
+		void signup(String email) {
+			expect(timed("POST", "/api/v1/auth/signup", credentials(email, PASSWORD)), 201, "가입");
 		}
 
 		long createDocument(String title, String content, String visibility) {

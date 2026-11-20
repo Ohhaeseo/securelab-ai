@@ -33,8 +33,11 @@ foreach ($port in 8080, 18080) {
 }
 
 # --no-daemon: 실험이 끝나면 Gradle 프로세스도 함께 끝나게 한다 (공유 데몬이 남아 다른 프로젝트 빌드에 섞이지 않도록).
+# 익명 IP 한도만 높인다: 러너의 가상 사용자가 모두 127.0.0.1에서 가입·로그인하므로, 기본값(60/분)이면 SEC-01/02 실험이
+# 요청 제한에 먼저 막힌다. SEC-03(로그인 보호)·SEC-04(로그인 사용자 한도)는 기본값으로 측정한다.
 $backend = Start-Process -FilePath (Join-Path $root 'backend\gradlew.bat') -WorkingDirectory (Join-Path $root 'backend') `
-    -ArgumentList '--no-daemon', '--console=plain', 'bootRun' -RedirectStandardOutput (Join-Path $logDir 'backend.log') `
+    -ArgumentList '--no-daemon', '--console=plain', 'bootRun', '--args=--securelab.rate-limit.anonymous-limit=100000' `
+    -RedirectStandardOutput (Join-Path $logDir 'backend.log') `
     -RedirectStandardError (Join-Path $logDir 'backend.err') -PassThru -NoNewWindow
 $vulnDir = Join-Path $PSScriptRoot 'vulnerable-api'
 $vuln = Start-Process -FilePath (Join-Path $vulnDir 'gradlew.bat') -WorkingDirectory $vulnDir `
@@ -54,4 +57,8 @@ finally {
     $null = $backend.WaitForExit(30000)
     $null = $vuln.WaitForExit(30000)
     Write-Host '두 앱을 종료했습니다.'
+    # SEC-03이 127.0.0.1의 로그인을 15분 동안 막으므로, 실험 카운터를 지워 로컬 개발에 영향을 남기지 않는다.
+    & docker compose --env-file (Join-Path $root 'infrastructure\.env') -f (Join-Path $root 'infrastructure\compose.yml') `
+        exec -T redis sh -c "redis-cli --scan --pattern 'login:fail:*' | xargs -r redis-cli del; redis-cli --scan --pattern 'rl:api:*' | xargs -r redis-cli del" | Out-Null
+    Write-Host 'Redis 실험 카운터(login:fail:*, rl:api:*)를 지웠습니다.'
 }

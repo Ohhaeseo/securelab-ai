@@ -106,13 +106,13 @@
 - [x] `attack_scenarios` 시드(V3, 합성 페이로드만), 재현 기록 → [experiment-results.md](../experiment-results.md)
   - 실측(30회): SEC-01 읽기·목록·수정·삭제, SEC-02 모두 취약 ASR 100% → 보호 0%, 오탐 0%
 
-### 4주 — 요청 제한, 탐지, 감사
-- Redis를 Compose에 추가, 요청 제한(429 + `Retry-After`)
-- 로그인 실패 제한, `login_attempts` 기록, `email_digest` HMAC (I-5)
-- `security_events` 감사 기록 (I-3)
-- Redis 장애 시 허용/거부 정책 결정 및 기록
-- 보존 기간 만료 데이터 정리 작업
-- SEC-03/04 테스트, 정상·공격 혼합 트래픽 설계 (I-8)
+### 4주 — 요청 제한, 탐지, 감사 ✅ (11/20에 먼저 완료)
+- [x] Redis 7.4를 Compose에 추가(비밀번호 필수), 요청 제한(429 + `Retry-After`): 로그인 사용자 ID별 120/분, 익명 IP별 60/분
+- [x] 로그인 실패 제한: (계정+IP) 5회, IP 20회 / 15분, `login_attempts`(V4) 기록, `email_digest` HMAC (I-5)
+- [x] `security_events` 감사 기록 (I-3, 2주차) + `RATE_LIMITED`·`LOGIN_BLOCKED` (차단 시작 시 1회)
+- [x] Redis 장애 시 정책: API 요청 제한 fail-open, 로그인 보호 DB 대체 집계 ([ADR-0004](../adr/0004-rate-limit-and-login-protection.md))
+- [x] 보존 기간 정리 작업: `login_attempts`·`security_events` 30일, 매일 03:30
+- [x] SEC-03/04 테스트(통합 11건, 단위 7건) + 러너 측정. 정상·공격 혼합(I-8): 러너가 공격과 함께 다른 사용자의 정상 요청을 보내 오탐을 잰다. 부하 상황 혼합은 8주차 k6
 
 ### 5주 — Mock AI, 권한 필터링 검색
 - `AiClient` 인터페이스, `MockAiClient`

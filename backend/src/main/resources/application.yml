@@ -36,6 +36,11 @@ securelab:
     max-failures-per-ip: 20
     window: 15m
     digest-secret: ${LOGIN_DIGEST_SECRET:}
+  # IP·계정 식별자가 든 기록의 보존 기간. 매일 03:30에 정리한다.
+  retention:
+    login-attempts: 30d
+    security-events: 30d
+    cron: "0 30 3 * * *"
 
 springdoc:
   # API 문서는 기본으로 끈다. local 프로필에서만 켠다.

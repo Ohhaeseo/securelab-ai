@@ -9,6 +9,7 @@
 | 기본 경로 | `/api/v1` |
 | 인증 | 세션 쿠키 (HttpOnly, SameSite). HTTPS 배포 시 Secure 강제 |
 | CSRF | 상태 변경 요청(POST/PATCH/DELETE)에 필요. `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보낸다. 쿠키는 `GET /auth/csrf`나 아무 응답에서 받을 수 있고, 로그인하면 새 값으로 바뀐다 |
+| 요청 제한 | `/api/**` — 로그인 사용자 ID별 120회/분, 익명 IP별 60회/분 (ADR-0004) |
 | 요청 추적 | `X-Request-Id` 헤더. 없으면 서버가 발급하고 응답·로그·보안 이벤트에 같은 값을 남김 |
 | 형식 | JSON (UTF-8) |
 
@@ -49,8 +50,8 @@
 | `METHOD_NOT_ALLOWED` | 405 | 지원하지 않는 메서드 |
 | `EMAIL_ALREADY_EXISTS` | 409 | 이메일 중복 |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | 지원하지 않는 콘텐츠 형식 |
-| `RATE_LIMITED` | 429 | 요청 한도 초과 |
-| `LOGIN_TEMPORARILY_BLOCKED` | 429 | 로그인 실패 누적으로 일시 제한 |
+| `RATE_LIMITED` | 429 | 요청 한도 초과 (`Retry-After`, `X-RateLimit-Limit`·`X-RateLimit-Remaining` 헤더) |
+| `LOGIN_TEMPORARILY_BLOCKED` | 429 | 로그인 실패 누적으로 일시 제한 (`Retry-After`). 차단 중에는 맞는 비밀번호도 거부 |
 | `INTERNAL_ERROR` | 500 | 서버 오류 |
 
 ## 2. 엔드포인트
