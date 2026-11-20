@@ -17,7 +17,7 @@
 ![Redis](https://img.shields.io/badge/Redis-7.4-DC382D?logo=redis&logoColor=white)
 ![Ollama](https://img.shields.io/badge/Ollama-0.40-000000?logo=ollama&logoColor=white)
 
-![status](https://img.shields.io/badge/status-week_7_done-blue)
+![status](https://img.shields.io/badge/status-week_8_measured-blue)
 ![tests](https://img.shields.io/badge/tests-116_passing-brightgreen)
 [![CI](https://github.com/Ohhaeseo/securelab-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/Ohhaeseo/securelab-ai/actions/workflows/ci.yml)
 
@@ -79,7 +79,7 @@
 | 요청 제한 | Redis (Lettuce) | 7.4 | ✅ | 기간별 요청 횟수, 로그인 실패 카운터 (TTL) |
 | AI | Mock LLM + Ollama (REST 직접 호출) | qwen2.5:1.5b, gemma3:1b | ✅ | GPU 없이 CPU로 1~2B 모델 실측. 도구 자동 실행을 막으려 Spring AI 대신 직접 호출 (ADR-0006) |
 | CI | GitHub Actions | — | ✅ | 통합 테스트 자동화 (Testcontainers) |
-| 부하 테스트 | k6 | — | 8주차 | 요청 제한·지연·오탐 측정 |
+| 부하 테스트 | k6 | 2.4.0 | ✅ | 정상·공격 혼합 트래픽으로 요청 제한 ON/OFF의 지연·오탐·차단률 비교 |
 | 개발 환경 | WSL2 · Docker Compose | — | ✅ | 로컬 재현성, 비용 0원 |
 
 > 의존성 버전은 [`backend/gradle.lockfile`](backend/gradle.lockfile)로 고정합니다. 갱신할 때는 `.\gradlew.bat dependencies --write-locks`로 다시 생성합니다.
@@ -200,6 +200,7 @@ AI 도구 실행 흐름과 신뢰 경계 표는 [docs/architecture.md](docs/arch
 | SEC-03 한 계정 비밀번호 반복 대입 | 30회 실패 후 맞는 비밀번호로 **로그인 성공** | 5회 실패 후 차단 (맞는 비밀번호도 429), 같은 IP 다른 계정은 정상 |
 | SEC-03 여러 계정 순회(스터핑) | 차단 없음 | IP 누적 실패 20회에서 차단 |
 | SEC-04 150회 연속 호출 | 150회 모두 허용 | 121번째부터 429, 다른 사용자 영향 없음 |
+| SEC-04 부하 (k6, 정상 10명 + 공격 2명, 90초) | — | 공격 46% 차단, **정상 오탐 0%**, 정상 p50 +2.5ms |
 
 | AI-01 문서 속 악성 지시 (페이로드 10종 × 3회) | 모델 반응률 | 정책 게이트 ON 실제 행위 |
 | --- | ---: | ---: |
@@ -227,7 +228,7 @@ gantt
   Ollama · Prompt Injection 벤치마크 :done, w6, after w5, 7d
   도구 실행 정책 · CI              :done, w7, after w6, 7d
   section 마무리
-  k6 측정 · 보고서 · 시연          :w8, after w7, 7d
+  k6 측정 · 보고서 · 시연          :active, w8, after w7, 7d
 ```
 
 | 주차 | 기간 | 목표 | 검증 가능한 산출물 | 상태 |
@@ -239,7 +240,7 @@ gantt
 | 5 | 12/21–12/27 | Mock AI, 소유권 필터링 문서 검색 | 인가된 문서만 AI에 전달 | ✅ |
 | 6 | 12/28–01/03 | Ollama 연동, Prompt Injection 벤치마크 | 시나리오별 ASR 기록 | ✅ |
 | 7 | 01/04–01/10 | 도구 실행 정책, 테스트·CI, 로그 | 무단 도구 실행 0건 검증 | ✅ |
-| 8 | 01/11–01/17 | k6 성능 측정, 보고서·시연·README | 전후 지표, 영상, 회고 | ⚪ |
+| 8 | 01/11–01/17 | k6 성능 측정, 보고서·시연·README | 전후 지표, 영상, 회고 | 🟡 (영상만 남음) |
 
 🟡 진행 중 · ⚪ 예정 · ✅ 완료 — 일별 체크리스트는 [roadmap.md](docs/planning/roadmap.md)에 있습니다.
 
@@ -306,7 +307,7 @@ securelab-ai/
 │   │   ├── run-sec-experiment.ps1             # 두 앱 기동 → 러너 실행 → 종료
 │   │   └── results/                           # 실측 요약 (raw/ 는 Git 제외)
 │   ├── prompt-injection/                      # AI-01~04, 합성 페이로드
-│   └── load-tests/                            # k6 스크립트 (8주차)
+│   └── load-tests/                            # k6 혼합 트래픽 (scripts/mixed-traffic.js, run-k6.ps1)
 ├── docs/
 │   ├── planning/
 │   │   ├── project-plan.md                    # 기획서 원본
@@ -406,6 +407,10 @@ Invoke-RestMethod "$base/api/v1/users/me" -WebSession $s
 | [데이터베이스](docs/database.md) | 테이블, ERD, 설계 결정 |
 | [API 명세](docs/api-spec.md) | 엔드포인트, 상태 코드, 에러 형식 |
 | [실험 결과](docs/experiment-results.md) | 지표 정의, 측정 결과 |
+| [포트폴리오 스토리](docs/portfolio-story.md) | 문제 → 재현 → 원인 → 개선 → 지표 |
+| [회고](docs/retrospective.md) | 잘된 점, 아쉬운 점, 다음에 할 일 |
+| [시연 대본](docs/demo-script.md) | 5분 시연 영상 녹화 순서 |
+| [인수인계](docs/HANDOVER.md) · [자율 결정 기록](docs/DECISIONS-LOG.md) | 작업 상태, 사용자 위임 결정 |
 | [ADR](docs/adr/) | 설계 결정 기록 |
 
 ## ✅ 완료 기준
@@ -424,4 +429,4 @@ Invoke-RestMethod "$base/api/v1/users/me" -WebSession $s
 
 ## 📄 라이선스
 
-미정
+[MIT](LICENSE)

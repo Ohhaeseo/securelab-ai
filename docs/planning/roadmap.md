@@ -136,6 +136,8 @@
 - [x] GitHub Actions CI: backend(Testcontainers PostgreSQL·Redis) + vulnerable-api, `permissions: contents: read`, wrapper 검증
 - [x] 로그 정책 점검: `LogHygieneTests` — 비밀번호·이메일·문서 본문·질문 원문이 어떤 로그에도 없음을 확인
 
-### 8주 — 측정, 보고서, 시연
-- k6 시나리오(정상 + 공격 혼합), 정책 전후 p50/p95·오탐률·차단률
-- [experiment-results.md](../experiment-results.md) 작성, 시연 영상, README 완성, 회고
+### 8주 — 측정, 보고서, 시연 🟡 (11/21에 대부분 완료)
+- [x] k6 시나리오(정상 + 공격 혼합), 정책 전후 p50/p95·오탐률·차단률 — 오탐 0%, 공격 차단 46%(고정 윈도우 이론값과 일치), p50 +2.5ms
+- [x] 요청 제한 측정 스위치는 `lab` 프로필 전용 (다른 프로필에서 끄면 기동 실패)
+- [x] [experiment-results.md](../experiment-results.md) 작성, README 완성, [회고](../retrospective.md), [포트폴리오 스토리](../portfolio-story.md), [시연 대본](../demo-script.md)
+- [ ] 시연 영상 녹화 — 대본대로 사용자가 직접 녹화 (Claude는 화면 녹화 불가)

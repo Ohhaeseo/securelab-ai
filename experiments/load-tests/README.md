@@ -1,23 +1,28 @@
 # 부하 테스트 (k6)
 
-요청 제한 정책의 차단 효과, 오탐, 지연 증가를 측정한다. (8주차, 시나리오 설계는 4주차)
+요청 제한(SEC-04)의 차단 효과, 오탐, 지연 증가를 **정상·공격 혼합 트래픽**으로 잰다 (I-8).
 
-## 측정 항목
+## 실행
 
-- 차단률: 정책으로 차단된 공격 요청 ÷ 전체 공격 요청
-- 오탐률: 차단된 정상 요청 ÷ 전체 정상 요청
-- 지연: p50 / p95, 정책 OFF ↔ ON 비교
-
-## 설계 원칙
-
-- 오탐률을 재려면 **정상 사용자 트래픽과 공격자 트래픽을 한 시나리오에 섞는다.** (k6 `scenarios`로 분리)
-- 세션 쿠키와 CSRF 토큰을 유지하도록 작성한다.
-- 대상은 로컬 `backend`뿐이다.
-
-## 예정 구조
-
-```text
-load-tests/
-├─ scripts/    # k6 스크립트
-└─ results/    # 요약 (raw/ 는 Git 제외)
+```powershell
+powershell -ExecutionPolicy Bypass -File experiments/load-tests/run-k6.ps1 -Duration 90s
 ```
+
+- backend를 `local,lab` 프로필·전용 포트 18091로 두 번 띄운다: 요청 제한 OFF(`securelab.rate-limit.enabled=false`, lab 프로필에서만 허용) → ON(기본값 120회/60초).
+- 응답한 서버가 SecureLab인지(`X-Request-Id`) 확인한 뒤에만 k6를 돌린다.
+- 측정 전후로 Redis 실험 카운터를 지운다.
+
+## 시나리오 (`scripts/mixed-traffic.js`)
+
+| 트래픽 | 사용자 | 속도 | 요청 |
+| --- | --- | --- | --- |
+| 정상 | 10명 | 합계 초당 5건 (1인당 분당 약 30건) | 자기 문서 조회 / 목록 번갈아 |
+| 공격 | 2명 | 합계 초당 10건 (1인당 분당 약 300건) | `GET /api/v1/users/me` 반복 |
+
+- 사용자마다 가입·로그인 후 세션을 유지한다 (`noCookiesReset: true` — k6 기본값은 반복마다 쿠키를 비운다).
+- 지표: `normal_latency`, `normal_blocked`(오탐), `normal_errors`, `attack_blocked`(차단률), `attack_latency`.
+
+## 결과
+
+- [k6-rate-limit-20261121-004807.md](results/k6-rate-limit-20261121-004807.md): 정상 오탐 0%, 공격 차단 46.2%(고정 윈도우 이론값과 일치), 정상 p50 5.8 → 8.3ms
+- 해석과 한계: [docs/experiment-results.md](../../docs/experiment-results.md)

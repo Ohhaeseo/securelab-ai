@@ -44,7 +44,7 @@ foreach ($port in $BackendPort, 18080) {
 # 익명 IP 한도만 높인다: 러너의 가상 사용자가 모두 127.0.0.1에서 가입·로그인하므로, 기본값(60/분)이면 SEC-01/02 실험이
 # 요청 제한에 먼저 막힌다. SEC-03(로그인 보호)·SEC-04(로그인 사용자 한도)는 기본값으로 측정한다.
 $backend = Start-Process -FilePath (Join-Path $root 'backend\gradlew.bat') -WorkingDirectory (Join-Path $root 'backend') `
-    -ArgumentList '--no-daemon', '--console=plain', 'bootRun', "--args=--server.port=$BackendPort --securelab.rate-limit.anonymous-limit=100000" `
+    -ArgumentList '--no-daemon', '--console=plain', 'bootRun', "--args=`"--server.port=$BackendPort --securelab.rate-limit.anonymous-limit=100000`"" `
     -RedirectStandardOutput (Join-Path $logDir 'backend.log') `
     -RedirectStandardError (Join-Path $logDir 'backend.err') -PassThru -NoNewWindow
 $vulnDir = Join-Path $PSScriptRoot 'vulnerable-api'

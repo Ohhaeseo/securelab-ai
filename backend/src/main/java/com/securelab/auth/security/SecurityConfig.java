@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -57,11 +58,16 @@ public class SecurityConfig {
 			SecurityContextRepository securityContextRepository,
 			JsonAuthenticationEntryPoint authenticationEntryPoint, JsonAccessDeniedHandler accessDeniedHandler,
 			FixedWindowRateLimiter rateLimiter, RateLimitProperties rateLimitProperties,
-			SecurityEventRecorder securityEvents, SecurityErrorWriter errorWriter) throws Exception {
+			SecurityEventRecorder securityEvents, SecurityErrorWriter errorWriter, Environment environment)
+			throws Exception {
 		// 요청 제한(SEC-04): 세션 인증을 읽은 직후, CSRF·인가 검사 전에 센다.
-		http.addFilterAfter(
-				new ApiRateLimitFilter(rateLimiter, rateLimitProperties, securityEvents, errorWriter),
-				SecurityContextHolderFilter.class);
+		// 끄는 것은 lab 프로필의 성능 측정에서만 허용 (아니면 기동 실패).
+		rateLimitProperties.requireAllowed(environment);
+		if (rateLimitProperties.enabled()) {
+			http.addFilterAfter(
+					new ApiRateLimitFilter(rateLimiter, rateLimitProperties, securityEvents, errorWriter),
+					SecurityContextHolderFilter.class);
+		}
 
 		http.authorizeHttpRequests((authorize) -> authorize
 			.dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()

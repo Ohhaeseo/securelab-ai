@@ -97,4 +97,4 @@
 | I-6 | "로컬 실험" 권한 | `/scenarios`, `/experiments`의 "관리자 + 로컬 실험" 조건을 어떻게 강제할지 없다. | **반영됨:** `@Profile("lab")` 컨트롤러 + `/api/v1/scenarios/**`·`/api/v1/experiments/**` ADMIN 규칙 | ✅ 2026-11-20 |
 | I-7 | 비밀번호 인코더 | Spring Security의 `Argon2PasswordEncoder`는 BouncyCastle 의존성이 필요하다. | **반영됨:** BouncyCastle 1.87 + Argon2id 기본 `DelegatingPasswordEncoder` → [ADR-0003](../adr/0003-password-encoder.md) | ✅ 2026-11-20 |
 | I-8 | 오탐률 기준선 | 오탐률은 "차단된 정상 요청 ÷ 정상 요청"인데 SEC-03/04에 정상 트래픽 정의가 없다. | **부분 반영:** 러너가 공격마다 다른 사용자의 정상 요청을 함께 보내 오탐률을 잰다(SEC-01~04 오탐 0%). 부하 상황 혼합은 k6로 | 8주차 측정 |
-| I-9 | 라이선스 | 저장소 구조에 `LICENSE`가 있지만 종류가 없다. | MIT 등으로 결정 | 첫 공개 커밋 전 |
+| I-9 | 라이선스 | 저장소 구조에 `LICENSE`가 있지만 종류가 없다. | **반영됨:** MIT (`LICENSE`, 자율 결정 D-11) | ✅ 2026-11-21 |
